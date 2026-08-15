@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f172a">
+  <title>TV Series Tracker</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PERSONAL TV LIBRARY</p>
+        <h1>TV Series Tracker</h1>
+        <p class="subtitle">Track shows, season-by-season progress, artwork and rich show details.</p>
+      </div>
+      <div class="top-actions">
+        <button class="btn primary" id="addShowBtn">＋ Add Show</button>
+        <button class="btn" id="exportBtn">Export JSON</button>
+        <label class="btn file-btn">Import JSON<input id="importFile" type="file" accept="application/json,.json"></label>
+        <button class="btn danger-ghost" id="resetBtn" title="Restore the baseline catalogue">Reset baseline</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="stats-grid" aria-label="Library summary">
+        <button class="stat-card" data-stat-status="" type="button"><span id="statTotal">0</span><small>All Shows</small></button>
+        <button class="stat-card watching" data-stat-status="Watching" type="button"><span id="statWatching">0</span><small>Watching</small></button>
+        <button class="stat-card partial" data-stat-status="Partially Watched" type="button"><span id="statPartial">0</span><small>Partially Watched</small></button>
+        <button class="stat-card completed" data-stat-status="Completed" type="button"><span id="statCompleted">0</span><small>Completed</small></button>
+        <button class="stat-card" data-stat-status="Not Started" type="button"><span id="statNotStarted">0</span><small>Not Started</small></button>
+        <button class="stat-card unavailable" data-stat-status="Unavailable" type="button"><span id="statUnavailable">0</span><small>Unavailable</small></button>
+      </section>
+
+      <section class="controls" aria-label="Search, filter and sort controls">
+        <div class="search-wrap">
+          <label for="searchInput">Search</label>
+          <input id="searchInput" type="search" placeholder="Search by title or description…" autocomplete="off">
+        </div>
+        <div>
+          <label for="platformFilter">Platform</label>
+          <select id="platformFilter"><option value="">All platforms</option></select>
+        </div>
+        <div>
+          <label for="statusFilter">Overall status</label>
+          <select id="statusFilter">
+            <option value="">All statuses</option>
+            <option>Watching</option>
+            <option>Partially Watched</option>
+            <option>Completed</option>
+            <option>Not Started</option>
+            <option>Unavailable</option>
+          </select>
+        </div>
+        <div>
+          <label for="sortSelect">Sort</label>
+          <select id="sortSelect">
+            <option value="dateDesc">Date aired — newest</option>
+            <option value="dateAsc">Date aired — oldest</option>
+            <option value="titleAsc">Title — A to Z</option>
+            <option value="titleDesc">Title — Z to A</option>
+            <option value="platformAsc">Platform then title</option>
+          </select>
+        </div>
+        <div class="view-control" aria-label="Display density">
+          <span class="control-label">View</span>
+          <div class="segmented">
+            <button type="button" class="segment active" id="cardsViewBtn" aria-pressed="true">Cards</button>
+            <button type="button" class="segment" id="compactViewBtn" aria-pressed="false">Compact</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="quick-row" aria-label="Quick filters">
+        <div class="quick-filters">
+          <button class="chip active" data-status-chip="" type="button">All</button>
+          <button class="chip" data-status-chip="Watching" type="button">Watching</button>
+          <button class="chip" data-status-chip="Partially Watched" type="button">Partially Watched</button>
+          <button class="chip" data-status-chip="Completed" type="button">Completed</button>
+          <button class="chip" data-status-chip="Not Started" type="button">Not Started</button>
+          <button class="chip" data-status-chip="Unavailable" type="button">Unavailable</button>
+        </div>
+        <button class="text-btn hidden" id="clearFiltersBtn" type="button">Clear filters</button>
+      </section>
+
+      <div class="results-meta">
+        <span id="resultCount"></span>
+        <span class="local-note">Changes on this device are stored locally until cloud sync is added.</span>
+      </div>
+
+      <section id="cardsContainer" class="cards-grid" aria-live="polite"></section>
+      <div class="load-more-wrap hidden" id="loadMoreWrap">
+        <button class="btn" id="loadMoreBtn" type="button">Load more</button>
+      </div>
+      <section id="emptyState" class="empty-state hidden">
+        <h2>No matching shows</h2>
+        <p>Adjust the search or filters, or add a new show.</p>
+      </section>
+
+      <section class="legend" aria-label="Season status legend">
+        <span class="legend-title">Season status</span>
+        <span><i class="legend-dot completed"></i>Completed</span>
+        <span><i class="legend-dot watching"></i>Watching</span>
+        <span><i class="legend-dot not-started"></i>Not Started</span>
+        <span><i class="legend-dot purchase-only"></i>Purchase Only</span>
+        <span><i class="legend-dot region-blocked"></i>Region Blocked</span>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="detailDialog" class="detail-dialog">
+    <article class="detail-card">
+      <button class="icon-btn detail-close" id="closeDetailBtn" type="button" aria-label="Close show details">×</button>
+      <div class="detail-hero">
+        <div id="detailPoster" class="detail-poster"><span>TV</span></div>
+        <div class="detail-summary">
+          <p class="eyebrow">SHOW DETAIL</p>
+          <div class="detail-title-row">
+            <div>
+              <h2 id="detailTitle">Show title</h2>
+              <p id="detailPlatform" class="platform"></p>
+            </div>
+            <span id="detailStatus" class="status-badge"></span>
+          </div>
+          <p id="detailMeta" class="detail-meta"></p>
+          <p id="detailDescription" class="detail-description"></p>
+          <div class="detail-progress-block">
+            <div class="detail-progress-head">
+              <span>Viewing progress</span>
+              <strong id="detailProgressText"></strong>
+            </div>
+            <div class="progress-track detail-progress-track"><div id="detailProgressFill" class="progress-fill"></div></div>
+          </div>
+        </div>
+      </div>
+      <section class="detail-seasons-section">
+        <div class="detail-section-head">
+          <div>
+            <p class="eyebrow">SEASON PROGRESS</p>
+            <h3>Season-by-season status</h3>
+          </div>
+          <button class="btn" id="detailEditBtn" type="button">Edit show</button>
+        </div>
+        <div id="detailSeasons" class="detail-seasons"></div>
+      </section>
+    </article>
+  </dialog>
+
+  <dialog id="showDialog">
+    <form method="dialog" id="showForm" class="dialog-card">
+      <header class="dialog-header">
+        <div>
+          <p class="eyebrow">SHOW DETAILS</p>
+          <h2 id="dialogTitle">Add Show</h2>
+        </div>
+        <button class="icon-btn" value="cancel" aria-label="Close">×</button>
+      </header>
+
+      <input type="hidden" id="showId">
+      <div class="form-grid">
+        <label>Platform
+          <input id="platformInput" list="platformOptions" required>
+          <datalist id="platformOptions"></datalist>
+        </label>
+        <label>First air / release date
+          <input id="dateInput" type="date" required>
+        </label>
+        <label class="span-2">Show title
+          <input id="titleInput" required>
+        </label>
+        <label class="span-2">Description
+          <textarea id="descriptionInput" rows="4"></textarea>
+        </label>
+        <label class="span-2">Poster URL <span class="muted">(optional)</span>
+          <input id="posterInput" type="url" placeholder="https://…">
+        </label>
+        <div class="span-2 poster-preview-row">
+          <div id="posterPreview" class="poster-preview"><span>Preview</span></div>
+          <p class="muted">Paste a direct image URL to add artwork. If an image cannot be loaded, the tracker automatically falls back to a title placeholder.</p>
+        </div>
+      </div>
+
+      <div class="season-editor-head">
+        <div>
+          <h3>Seasons</h3>
+          <p>Viewing state is recorded per season.</p>
+        </div>
+        <button type="button" class="btn" id="addSeasonBtn">＋ Add season</button>
+      </div>
+      <div id="seasonEditor" class="season-editor"></div>
+
+      <footer class="dialog-actions">
+        <button class="btn" value="cancel">Cancel</button>
+        <button type="button" class="btn danger-ghost hidden" id="deleteShowBtn">Delete</button>
+        <button type="submit" class="btn primary" id="saveShowBtn">Save show</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <template id="seasonRowTemplate">
+    <div class="season-edit-row">
+      <span class="season-number"></span>
+      <select class="season-status">
+        <option>Not Started</option>
+        <option>Watching</option>
+        <option>Completed</option>
+        <option>Purchase Only</option>
+        <option>Region Blocked</option>
+      </select>
+      <button type="button" class="icon-btn remove-season" aria-label="Remove season">×</button>
+    </div>
+  </template>
+
+  <script src="data/shows.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

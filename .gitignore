@@ -1,0 +1,14 @@
+# Local configuration / secrets
+config/tmdb.local.js
+.env
+.env.*
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
