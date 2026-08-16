@@ -10,6 +10,7 @@
   let baselineShows = [];
   let shows = [];
   let visibleLimit = PAGE_SIZE;
+  let pendingTmdbMatch = null;
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -23,6 +24,8 @@
     showDialog: $("showDialog"), showForm: $("showForm"), dialogTitle: $("dialogTitle"), showId: $("showId"),
     platformInput: $("platformInput"), platformOptions: $("platformOptions"), titleInput: $("titleInput"),
     dateInput: $("dateInput"), descriptionInput: $("descriptionInput"), posterInput: $("posterInput"),
+    findArtworkBtn: $("findArtworkBtn"), tmdbStatus: $("tmdbStatus"),
+    tmdbDialog: $("tmdbDialog"), closeTmdbBtn: $("closeTmdbBtn"), tmdbResults: $("tmdbResults"), tmdbQuerySummary: $("tmdbQuerySummary"),
     seasonEditor: $("seasonEditor"), addSeasonBtn: $("addSeasonBtn"), deleteShowBtn: $("deleteShowBtn"),
     seasonRowTemplate: $("seasonRowTemplate"), posterPreview: $("posterPreview"),
     detailDialog: $("detailDialog"), closeDetailBtn: $("closeDetailBtn"), detailPoster: $("detailPoster"),
@@ -231,6 +234,94 @@
     els.detailDialog.showModal();
   }
 
+  function tmdbToken(){
+    return String(window.TMDB_CONFIG?.token || "").trim();
+  }
+
+  function tmdbImageUrl(path, size="w500"){
+    return path ? `https://image.tmdb.org/t/p/${size}${path}` : "";
+  }
+
+  async function searchTmdbArtwork(){
+    const token = tmdbToken();
+    const title = els.titleInput.value.trim();
+    const year = (els.dateInput.value || "").slice(0,4);
+    if(!token){
+      alert("TMDB local token not found. Check config/tmdb.local.js.");
+      return;
+    }
+    if(!title){
+      alert("Enter a show title before searching TMDB.");
+      return;
+    }
+    els.findArtworkBtn.disabled = true;
+    els.tmdbStatus.textContent = "Searching TMDB…";
+    try{
+      const params = new URLSearchParams({query:title, include_adult:"false", language:"en-GB", page:"1"});
+      if(year) params.set("first_air_date_year", year);
+      let response = await fetch(`https://api.themoviedb.org/3/search/tv?${params}`, {
+        headers:{Authorization:`Bearer ${token}`, accept:"application/json"}
+      });
+      if(!response.ok) throw new Error(`TMDB returned ${response.status}`);
+      let data = await response.json();
+      // If an exact-year search finds nothing, retry title-only rather than presenting no useful candidates.
+      if(year && (!Array.isArray(data.results) || data.results.length === 0)){
+        params.delete("first_air_date_year");
+        response = await fetch(`https://api.themoviedb.org/3/search/tv?${params}`, {
+          headers:{Authorization:`Bearer ${token}`, accept:"application/json"}
+        });
+        if(!response.ok) throw new Error(`TMDB returned ${response.status}`);
+        data = await response.json();
+      }
+      renderTmdbCandidates((data.results || []).slice(0,8), title, year);
+      els.tmdbStatus.textContent = `${Math.min((data.results || []).length,8)} candidate${(data.results || []).length===1?"":"s"} returned`;
+      els.tmdbDialog.showModal();
+    }catch(error){
+      console.error(error);
+      els.tmdbStatus.textContent = "TMDB search failed";
+      alert(`TMDB search failed: ${error.message}`);
+    }finally{
+      els.findArtworkBtn.disabled = false;
+    }
+  }
+
+  function renderTmdbCandidates(results, title, year){
+    els.tmdbQuerySummary.textContent = year ? `Searching for “${title}” (${year})` : `Searching for “${title}”`;
+    els.tmdbResults.innerHTML = "";
+    if(!results.length){
+      els.tmdbResults.innerHTML = `<p class="muted">No TMDB matches were found. Try adjusting the title or release date.</p>`;
+      return;
+    }
+    results.forEach(result => {
+      const candidate = document.createElement("button");
+      candidate.type = "button";
+      candidate.className = "tmdb-candidate";
+      const poster = tmdbImageUrl(result.poster_path, "w185");
+      const airYear = String(result.first_air_date || "").slice(0,4) || "Year unknown";
+      candidate.innerHTML = `
+        <div class="tmdb-thumb">${poster ? `<img src="${escapeAttr(poster)}" alt="">` : `<span>${escapeHtml(initials(result.name))}</span>`}</div>
+        <div class="tmdb-candidate-copy">
+          <strong>${escapeHtml(result.name || "Untitled")}</strong>
+          <span>${escapeHtml(airYear)}</span>
+          <p>${escapeHtml(result.overview || "No TMDB synopsis available.")}</p>
+        </div>
+        <span class="tmdb-select">Use artwork</span>`;
+      candidate.addEventListener("click",()=>{
+        pendingTmdbMatch = {
+          id: result.id,
+          name: result.name || "",
+          firstAirDate: result.first_air_date || "",
+          posterPath: result.poster_path || ""
+        };
+        els.posterInput.value = tmdbImageUrl(result.poster_path, "w500");
+        refreshPosterPreview();
+        els.tmdbStatus.textContent = `Selected TMDB #${result.id}${result.poster_path ? " · artwork ready" : " · no poster available"}`;
+        els.tmdbDialog.close();
+      });
+      els.tmdbResults.appendChild(candidate);
+    });
+  }
+
   function refreshPosterPreview(){
     els.posterPreview.innerHTML = `<span>${els.posterInput.value.trim() ? "Preview" : initials(els.titleInput.value || "TV")}</span>`;
     setPosterBackground(els.posterPreview, els.posterInput.value, els.titleInput.value || "TV", els.posterInput.value.trim() ? "Preview" : null);
@@ -239,6 +330,8 @@
   function openEditor(show=null){
     els.showForm.reset();
     els.seasonEditor.innerHTML = "";
+    pendingTmdbMatch = null;
+    if(els.tmdbStatus) els.tmdbStatus.textContent = tmdbToken() ? "TMDB local token detected." : "Local test only — no API token is stored in Git.";
     if(show){
       els.dialogTitle.textContent = "Edit Show";
       els.showId.value = show.id;
@@ -247,6 +340,7 @@
       els.dateInput.value = show.firstAirDate || "";
       els.descriptionInput.value = show.description || "";
       els.posterInput.value = show.posterUrl || "";
+      pendingTmdbMatch = show.tmdb ? deepCopy(show.tmdb) : null;
       (show.seasons || []).forEach(s=>addSeasonRow(s.status));
       els.deleteShowBtn.classList.remove("hidden");
     }else{
@@ -285,6 +379,7 @@
       firstAirDate: els.dateInput.value,
       description: els.descriptionInput.value.trim(),
       posterUrl: els.posterInput.value.trim(),
+      tmdb: pendingTmdbMatch ? deepCopy(pendingTmdbMatch) : null,
       seasons: [...els.seasonEditor.querySelectorAll(".season-status")].map((select,i)=>({number:i+1,status:select.value})),
       createdAt: now,
       updatedAt: now
@@ -364,6 +459,8 @@
 
   els.addShowBtn.addEventListener("click",()=>openEditor());
   els.addSeasonBtn.addEventListener("click",()=>addSeasonRow("Not Started"));
+  els.findArtworkBtn?.addEventListener("click", searchTmdbArtwork);
+  els.closeTmdbBtn?.addEventListener("click",()=>els.tmdbDialog.close());
   els.showForm.addEventListener("submit",e=>{e.preventDefault();saveEditor();});
   els.deleteShowBtn.addEventListener("click",deleteCurrent);
   els.exportBtn.addEventListener("click",exportJson);
