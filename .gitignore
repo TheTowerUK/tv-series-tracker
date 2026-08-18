@@ -1,2 +1,16 @@
 
 config/tmdb.local.js
+
+# Repository-local Node development tooling
+node_modules/
+
+# Local environment and secret files
+.env
+.env.*
+!.env.example
+config/supabase.local.js
+
+# Supabase CLI temporary, branch, and remote-link state
+.supabase/
+supabase/.branches/
+supabase/.temp/
