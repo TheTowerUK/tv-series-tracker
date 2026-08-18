@@ -2,7 +2,7 @@
 
 ## Purpose and status
 
-This directory contains the versioned architecture, security, migration, delivery, and validation documentation for TV Series Tracker v2.0. The Phase 2.1 documentation baseline was accepted on 2026-08-17; Phase 2.2 is next. No Supabase schema, function, application integration, or production migration is implied by documentation approval.
+This directory contains the versioned architecture, security, migration, delivery, and validation documentation for TV Series Tracker v2.0. The Phase 2.1 documentation baseline was accepted on 2026-08-17. Phase 2.2 was approved on 2026-08-18: its local tooling baseline is commit `e8ee931`, and its closure baseline records the approved hosted development-environment disposition, environment contract, browser-safe configuration shape, and reproduced local workflow. Phase 2.3 is next but has not begun. No Supabase schema, function, application integration, or production migration is implied by documentation approval.
 
 TTSPlayer is a separate project. Its files, secrets, infrastructure, and decisions are completely out of scope.
 
@@ -34,10 +34,16 @@ Version-controlled database migrations will implement the contract after approva
 - [LocalStorage migration](database/localstorage-migration.md)
 - [Initial 352-show import](database/initial-352-show-import.md)
 
+## Development environments
+
+- [Supabase environment and configuration contract](development/supabase-environments.md)
+- [Browser-safe Supabase configuration example](../config/supabase.example.js)
+
 ## Roadmap and validation
 
 - [v2.0 roadmap](roadmap/v2.0-plan.md)
 - [Phase 2.1 validation checklist](roadmap/v2.0-phase-2.1-validation.md)
+- [Phase 2.2 validation and closure checklist](roadmap/v2.0-phase-2.2-validation.md)
 
 Later phases should add dated validation/evidence records beside the relevant roadmap material rather than rewriting historical results.
 
