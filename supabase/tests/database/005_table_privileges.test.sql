@@ -1,6 +1,6 @@
 begin;
 
-select plan(22);
+select plan(23);
 
 select ok(has_table_privilege('authenticated', 'public.shows', 'SELECT'), 'authenticated can select shows');
 select ok(has_table_privilege('authenticated', 'public.season_progress', 'SELECT'), 'authenticated can select seasons');
@@ -22,7 +22,8 @@ select ok(has_table_privilege('tracker_api_owner', 'public.season_progress', 'IN
 select ok(has_table_privilege('tracker_api_owner', 'public.season_progress', 'UPDATE'), 'tracker_api_owner can update seasons');
 select ok(has_table_privilege('tracker_api_owner', 'public.season_progress', 'DELETE'), 'tracker_api_owner can delete seasons');
 select ok(has_table_privilege('tracker_api_owner', 'public.migration_receipts', 'SELECT'), 'tracker_api_owner can select receipts');
-select ok(not has_table_privilege('tracker_api_owner', 'public.migration_receipts', 'INSERT,UPDATE,DELETE'), 'tracker_api_owner cannot mutate receipts');
+select ok(has_table_privilege('tracker_api_owner', 'public.migration_receipts', 'INSERT,UPDATE'), 'tracker_api_owner can insert and update receipts');
+select ok(not has_table_privilege('tracker_api_owner', 'public.migration_receipts', 'DELETE'), 'tracker_api_owner cannot delete receipts');
 
 select ok(has_type_privilege('authenticated', 'public.season_status', 'USAGE'), 'authenticated has season_status usage');
 select ok(has_type_privilege('tracker_api_owner', 'public.season_status', 'USAGE'), 'tracker_api_owner has season_status usage');

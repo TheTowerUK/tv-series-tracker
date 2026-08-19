@@ -19,8 +19,8 @@ select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg
 select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and has_function_privilege('authenticated',p.oid,'EXECUTE')),5,'authenticated can execute exactly the five tracker functions');
 select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and (has_function_privilege('anon',p.oid,'EXECUTE') or has_function_privilege('public',p.oid,'EXECUTE'))),0,'anon and PUBLIC cannot execute tracker functions');
 select ok(not has_schema_privilege('tracker_api_owner','auth','USAGE'),'function owner has no Auth-schema usage');
-select ok(not has_table_privilege('tracker_api_owner','public.migration_receipts','INSERT,UPDATE,DELETE'),'function owner cannot mutate receipts');
-select is((select count(*)::integer from pg_catalog.pg_policies where schemaname='public' and tablename='migration_receipts' and cmd in ('INSERT','UPDATE','DELETE','ALL')),0,'receipt mutation policies remain absent');
+select ok(has_table_privilege('tracker_api_owner','public.migration_receipts','INSERT,UPDATE'),'Phase 2.4 function owner can insert and update receipts');
+select ok(not has_table_privilege('tracker_api_owner','public.migration_receipts','DELETE'),'receipt delete capability remains absent');
 select ok(not has_table_privilege('authenticated','public.shows','INSERT,UPDATE,DELETE'),'authenticated direct show DML remains denied');
 select ok(not has_table_privilege('authenticated','public.season_progress','INSERT,UPDATE,DELETE'),'authenticated direct season DML remains denied');
 select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.prosrc ~* '(sqlerrm|sqlstate|pg_exception|constraint_name|message_text)'),0,'tracker sources do not read PostgreSQL diagnostics');
