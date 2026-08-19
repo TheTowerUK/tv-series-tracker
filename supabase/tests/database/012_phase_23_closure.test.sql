@@ -4,26 +4,26 @@ select plan(22);
 
 select is(
   (select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%'),
-  5,
-  'exactly five Phase 2.3 tracker functions exist'
+  6,
+  'five Phase 2.3 functions plus the Phase 2.4 v1 migration function exist'
 );
 select is(
   (select pg_catalog.string_agg(p.proname||'('||pg_catalog.pg_get_function_identity_arguments(p.oid)||')',',' order by p.proname) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%'),
-  'tracker_create_show(request jsonb),tracker_delete_season(request jsonb),tracker_delete_show(request jsonb),tracker_update_show(request jsonb),tracker_upsert_season(request jsonb)',
+  'tracker_create_show(request jsonb),tracker_delete_season(request jsonb),tracker_delete_show(request jsonb),tracker_migrate_v1(request jsonb),tracker_update_show(request jsonb),tracker_upsert_season(request jsonb)',
   'tracker function names and signatures match exactly'
 );
-select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.prorettype='jsonb'::pg_catalog.regtype),5,'all tracker functions return jsonb');
-select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.prosecdef),5,'all tracker functions are security definer');
-select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.proowner='tracker_api_owner'::pg_catalog.regrole),5,'all tracker functions have the restricted owner');
-select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.proconfig=array['search_path=""']),5,'all tracker functions have an empty search path');
-select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and has_function_privilege('authenticated',p.oid,'EXECUTE')),5,'authenticated can execute exactly the five tracker functions');
+select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.prorettype='jsonb'::pg_catalog.regtype),6,'all tracker functions return jsonb');
+select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.prosecdef),6,'all tracker functions are security definer');
+select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.proowner='tracker_api_owner'::pg_catalog.regrole),6,'all tracker functions have the restricted owner');
+select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.proconfig=array['search_path=""']),6,'all tracker functions have an empty search path');
+select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and has_function_privilege('authenticated',p.oid,'EXECUTE')),6,'authenticated can execute exactly the six implemented functions');
 select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and (has_function_privilege('anon',p.oid,'EXECUTE') or has_function_privilege('public',p.oid,'EXECUTE'))),0,'anon and PUBLIC cannot execute tracker functions');
 select ok(not has_schema_privilege('tracker_api_owner','auth','USAGE'),'function owner has no Auth-schema usage');
 select ok(has_table_privilege('tracker_api_owner','public.migration_receipts','INSERT,UPDATE'),'Phase 2.4 function owner can insert and update receipts');
 select ok(not has_table_privilege('tracker_api_owner','public.migration_receipts','DELETE'),'receipt delete capability remains absent');
 select ok(not has_table_privilege('authenticated','public.shows','INSERT,UPDATE,DELETE'),'authenticated direct show DML remains denied');
 select ok(not has_table_privilege('authenticated','public.season_progress','INSERT,UPDATE,DELETE'),'authenticated direct season DML remains denied');
-select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.prosrc ~* '(sqlerrm|sqlstate|pg_exception|constraint_name|message_text)'),0,'tracker sources do not read PostgreSQL diagnostics');
+select is((select count(*)::integer from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'tracker_%' and p.prosrc ~* '(sqlerrm|pg_exception|constraint_name|message_text)'),0,'tracker sources do not read PostgreSQL diagnostics');
 
 insert into auth.users(id,email) values('c0000000-0000-0000-0000-00000000000c','cascade@example.invalid');
 insert into public.shows(id,user_id,platform,title) values('cc000000-0000-0000-0000-00000000000c','c0000000-0000-0000-0000-00000000000c','Test','Cascade show');
