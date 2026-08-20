@@ -1,7 +1,6 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "tvSeriesTrackerData.v1";
   const VIEW_KEY = "tvSeriesTrackerView.v1";
   const PAGE_SIZE = 60;
   const SEASON_STATUSES = ["Not Started","Watching","Completed","Purchase Only","Region Blocked"];
@@ -11,6 +10,7 @@
   let shows = [];
   let visibleLimit = PAGE_SIZE;
   let pendingTmdbMatch = null;
+  const localRepository = window.TV_TRACKER_REPOSITORIES.createLocalTrackerRepository({storage:localStorage});
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -38,18 +38,17 @@
   const statusChips = [...document.querySelectorAll("[data-status-chip]")];
 
   function deepCopy(value){ return JSON.parse(JSON.stringify(value)); }
-  function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({schemaVersion:1, shows})); }
+  function save(){
+    const result = localRepository.writeTracker(shows);
+    if(!result.ok) throw new Error("Unable to save tracker data on this device.");
+  }
 
   function load(){
     const baseline = window.TV_TRACKER_BASELINE;
     if(!baseline) throw new Error("Unable to load baseline catalogue.");
     baselineShows = deepCopy(Array.isArray(baseline) ? baseline : baseline.shows || []);
-    try{
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      shows = stored ? deepCopy(Array.isArray(stored) ? stored : stored.shows || []) : deepCopy(baselineShows);
-    }catch{
-      shows = deepCopy(baselineShows);
-    }
+    const result = localRepository.readTracker({baseline:baselineShows});
+    shows = deepCopy(result.data.shows);
     refreshPlatformOptions();
     applySavedView();
     render();
