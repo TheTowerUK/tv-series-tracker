@@ -38,9 +38,9 @@
 
   const CLIENT_OPTIONS = Object.freeze({
     auth: Object.freeze({
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
     })
   });
 

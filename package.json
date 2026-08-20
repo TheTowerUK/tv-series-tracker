@@ -8,7 +8,8 @@
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
-    "test:browser-foundation": "node --test tests/browser-foundation/*.test.js"
+    "test:browser-foundation": "node --test tests/browser-foundation/*.test.js",
+    "test:auth": "node --test tests/auth/*.test.js"
   },
   "devDependencies": {
     "supabase": "2.114.0"

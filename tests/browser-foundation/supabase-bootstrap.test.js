@@ -85,9 +85,9 @@ test("bootstrap creates one client and is idempotent", () => {
   assert.equal(bootstrap.getClient(), expectedClient);
   assert.deepEqual(calls[0][2], CLIENT_OPTIONS);
   assert.deepEqual(CLIENT_OPTIONS.auth, {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
   });
 });
 

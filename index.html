@@ -15,11 +15,37 @@
         <h1>TV Series Tracker</h1>
         <p class="subtitle">Track shows, season-by-season progress, artwork and rich show details.</p>
       </div>
-      <div class="top-actions">
-        <button class="btn primary" id="addShowBtn">＋ Add Show</button>
-        <button class="btn" id="exportBtn">Export JSON</button>
-        <label class="btn file-btn">Import JSON<input id="importFile" type="file" accept="application/json,.json"></label>
-        <button class="btn danger-ghost" id="resetBtn" title="Restore the baseline catalogue">Reset baseline</button>
+      <div class="topbar-tools">
+        <div class="top-actions">
+          <button class="btn primary" id="addShowBtn">＋ Add Show</button>
+          <button class="btn" id="exportBtn">Export JSON</button>
+          <label class="btn file-btn">Import JSON<input id="importFile" type="file" accept="application/json,.json"></label>
+          <button class="btn danger-ghost" id="resetBtn" title="Restore the baseline catalogue">Reset baseline</button>
+        </div>
+        <section class="account-panel" id="accountPanel" aria-label="Cloud account" data-auth-state="initializing">
+          <div id="authSignedOut">
+            <form id="authRequestForm" class="account-form">
+              <label for="authEmail">Private cloud sign-in</label>
+              <div class="account-input-row">
+                <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="Email address" required>
+                <button class="btn" id="authSendBtn" type="submit">Send code/link</button>
+              </div>
+            </form>
+            <div class="account-verification hidden" id="authVerification">
+              <p>Use the email link, or enter the one-time code.</p>
+              <form id="authVerificationForm" class="account-input-row">
+                <input id="authOtp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,8}" maxlength="8" aria-label="One-time verification code" placeholder="Verification code" required>
+                <button class="btn" id="authVerifyBtn" type="submit">Verify</button>
+              </form>
+              <button class="text-btn" id="authResendBtn" type="button">Resend code/link</button>
+            </div>
+          </div>
+          <div class="account-signed-in hidden" id="authSignedIn">
+            <strong>Cloud account signed in</strong>
+            <button class="btn" id="authSignOutBtn" type="button">Sign out</button>
+          </div>
+          <p class="account-status" id="authStatus" role="status" aria-live="polite">Checking cloud configuration…</p>
+        </section>
       </div>
     </header>
 
@@ -235,6 +261,8 @@
   <script src="vendor/supabase-js/2.112.3/supabase.js"></script>
   <script src="config/supabase.local.js"></script>
   <script src="js/supabase-bootstrap.js"></script>
+  <script src="js/auth-session.js"></script>
+  <script src="js/auth-ui.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
