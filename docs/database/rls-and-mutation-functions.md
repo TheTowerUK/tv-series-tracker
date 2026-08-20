@@ -34,7 +34,7 @@ This matrix is normative; executable policies/grants are deferred.
 | `shows`, `season_progress`: `UPDATE` | `tracker_api_owner` | `USING (auth.uid() = user_id)` and `WITH CHECK (auth.uid() = user_id)` |
 | `shows`, `season_progress`: `DELETE` | `tracker_api_owner` | `USING (auth.uid() = user_id)` |
 | `migration_receipts`: `SELECT` | `authenticated` | `USING (auth.uid() = user_id)` |
-| `migration_receipts`: `INSERT`, `UPDATE`, `DELETE` | `tracker_api_owner` | Owner-scoped `WITH CHECK` and/or `USING` as applicable; reachable only inside migration/restore functions. |
+| `migration_receipts`: `INSERT`, `UPDATE` | `tracker_api_owner` | Owner-scoped `WITH CHECK` and/or `USING` as applicable; reachable only inside the migration function. Receipt `DELETE` is not granted and has no policy. |
 
 No owner write policy targets `authenticated`. Direct DML is revoked from both browser roles. `tracker_api_owner` is not granted broad schema administration, role management, arbitrary function execution, or access to Auth identities beyond what the controlled functions require.
 
@@ -47,7 +47,7 @@ The role's aggregate table capabilities and each function's allowed use are:
 | `tracker_delete_show` | Owner-scoped `SELECT`/`DELETE` on `shows`; season removal occurs through the declared FK cascade. |
 | `tracker_upsert_season` | Owner-scoped `SELECT` on `shows`; owner-scoped `SELECT`/`INSERT`/`UPDATE` on `season_progress`. |
 | `tracker_delete_season` | Owner-scoped `SELECT` on `shows`; owner-scoped `SELECT`/`DELETE` on `season_progress`. |
-| `tracker_migrate_v1`, `tracker_restore_v2` | Owner-scoped `SELECT`/`INSERT`/`UPDATE`/`DELETE` on both domain tables; owner-scoped receipt capabilities required by their documented receipt rules. |
+| `tracker_migrate_v1`, `tracker_restore_v2` | Owner-scoped `SELECT`/`INSERT`/`UPDATE`/`DELETE` on both domain tables. `tracker_migrate_v1` may use owner-scoped receipt `SELECT`/`INSERT`/`UPDATE`; `tracker_restore_v2` does not mutate receipts. Neither function may delete a receipt. |
 
 Because PostgreSQL grants attach to the shared owner role, the role receives the least-privilege union of that matrix; each function body is limited to its row operations and is tested accordingly. The current UUID design uses no application sequence, so no sequence grant is required. If implementation introduces a sequence, its exact `USAGE`/`SELECT` need must be reviewed and documented rather than granting all sequences.
 
