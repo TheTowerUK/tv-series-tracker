@@ -42,6 +42,7 @@
   const statusChips = [...document.querySelectorAll("[data-status-chip]")];
   let cloudController = null;
   let cloudContext = null;
+  let conflictReview = null;
 
   function deepCopy(value){ return JSON.parse(JSON.stringify(value)); }
   function save(){
@@ -95,11 +96,13 @@
     els.cloudConflictDiscardBtn?.classList.toggle("hidden", !conflict);
     if(els.cloudSyncMessage) els.cloudSyncMessage.textContent = stale
       ? "Cloud data cannot currently be updated safely. Refresh before making more changes."
-      : conflict ? "This show changed elsewhere. Discard your attempted change to reload the current cloud version."
+      : conflict ? "This show changed on another device. Review the current cloud version before retrying."
       : state.status === "cloud_mutating" ? "Saving your cloud change…"
       : state.status === "cloud_refreshing" ? "Confirming the latest cloud tracker…" : "";
     setMutationControlsDisabled(state.status !== "cloud_ready");
     if(["cloud_ready","cloud_conflict"].includes(state.status)){ refreshPlatformOptions(); visibleLimit=PAGE_SIZE; render(); }
+    if(conflict && state.conflict) conflictReview?.show(state.conflict);
+    if(stale) conflictReview?.close();
   }
 
   function showCloudFailure(){
@@ -117,6 +120,7 @@
   }
 
   function returnToLocal(){
+    conflictReview?.close();
     cloudController?.invalidate(); cloudController=null; cloudContext=null;
     authority = "local";
     const result = localRepository.readTracker({baseline:baselineShows});
@@ -401,21 +405,22 @@
     setPosterBackground(els.posterPreview, els.posterInput.value, els.titleInput.value || "TV", els.posterInput.value.trim() ? "Preview" : null);
   }
 
-  function openEditor(show=null){
+  function openEditor(show=null,draft=null){
     if(!showWritesReady()) return;
     els.showForm.reset();
     els.seasonEditor.innerHTML = "";
     pendingTmdbMatch = null;
     if(els.tmdbStatus) els.tmdbStatus.textContent = tmdbToken() ? "TMDB local token detected." : "Local test only — no API token is stored in Git.";
     if(show){
+      const values = draft || show;
       els.dialogTitle.textContent = "Edit Show";
       els.showId.value = show.id;
-      els.platformInput.value = show.platform || "";
-      els.titleInput.value = show.title || "";
-      els.dateInput.value = show.firstAirDate || "";
-      els.descriptionInput.value = show.description || "";
-      els.posterInput.value = show.posterUrl || "";
-      pendingTmdbMatch = show.tmdb ? deepCopy(show.tmdb) : null;
+      els.platformInput.value = values.platform || "";
+      els.titleInput.value = values.title || "";
+      els.dateInput.value = values.firstAirDate || "";
+      els.descriptionInput.value = values.description || "";
+      els.posterInput.value = values.posterUrl || "";
+      pendingTmdbMatch = values.tmdb ? deepCopy(values.tmdb) : null;
       (show.seasons || []).forEach(s=>addSeasonRow(s.status));
       els.deleteShowBtn.classList.remove("hidden");
     }else{
@@ -591,7 +596,17 @@
     if(show) openEditor(show);
   });
   els.cloudSyncRetryBtn?.addEventListener("click",async()=>{ if(cloudController&&cloudContext) await cloudController.recover(cloudContext); });
-  els.cloudConflictDiscardBtn?.addEventListener("click",()=>{ cloudController?.clearConflict(); });
+  conflictReview = window.TV_TRACKER_SHOW_CONFLICT_REVIEW.createConflictReview({document,
+    onUseCurrent:()=>cloudController?.clearConflict(),
+    onReview:model=>{
+      const current=model.current;
+      if(!current){ cloudController?.clearConflict(); return; }
+      cloudController?.clearConflict();
+      openEditor(current,model.kind==="update"?model.proposed:null);
+    },
+    onCancel:()=>{}
+  });
+  els.cloudConflictDiscardBtn?.addEventListener("click",()=>{ const state=cloudController?.getState(); if(state?.conflict?.currentRecord) conflictReview.show(state.conflict); });
   els.detailDialog.addEventListener("click",e=>{
     const rect = els.detailDialog.getBoundingClientRect();
     const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;

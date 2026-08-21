@@ -45,6 +45,20 @@
     return Boolean(left && right && left.accountId && left.accountId === right.accountId && left.generation === right.generation);
   }
 
+  function conflictRecord(submission, freshSnapshot) {
+    const current = submission && submission.args && submission.args[0];
+    return current && current.id ? freshSnapshot.shows.find((show) => show.id === current.id) || null : null;
+  }
+
+  function resolvedConflict(submission, result, supplied, freshSnapshot) {
+    return clone({
+      context: supplied,
+      submission,
+      result: { outcome: "conflict", conflict: result.conflict },
+      currentRecord: conflictRecord(submission, freshSnapshot)
+    });
+  }
+
   function mutationRepresented(operation, data, snapshot) {
     const shows = snapshot.shows;
     const show = data && data.show;
@@ -150,6 +164,7 @@
         return result;
       }
       if (result.outcome === "conflict") {
+        conflict = clone({ context: supplied, submission, result: { outcome: "conflict", conflict: result.conflict }, currentRecord: null });
         publish(STATES.CLOUD_REFRESHING);
         const refreshed = await readFresh(run, supplied);
         if (refreshed.discarded) return reject("operation_discarded");
@@ -160,7 +175,7 @@
           return reject("cloud_refresh_failed");
         }
         snapshot = refreshed.snapshot;
-        conflict = clone({ submission, result: { outcome: "conflict", conflict: result.conflict } });
+        conflict = resolvedConflict(submission, result, supplied, snapshot);
         publish(STATES.CLOUD_CONFLICT);
         return Object.freeze({ ...result, snapshot });
       }
@@ -202,9 +217,15 @@
       if (refreshed.discarded) return reject("operation_discarded");
       if (!refreshed.ok) return reject("cloud_refresh_failed");
       snapshot = refreshed.snapshot;
-      conflict = null;
+      const resumeConflict = recovery && recovery.kind === "conflict_refresh_failed" && conflict;
       recovery = null;
-      publish(STATES.CLOUD_READY);
+      if (resumeConflict) {
+        conflict = resolvedConflict(conflict.submission, conflict.result, supplied, snapshot);
+        publish(STATES.CLOUD_CONFLICT);
+      } else {
+        conflict = null;
+        publish(STATES.CLOUD_READY);
+      }
       return Object.freeze({ ok: true, outcome: "success", data: { snapshot }, conflict: null, error: null });
     }
 

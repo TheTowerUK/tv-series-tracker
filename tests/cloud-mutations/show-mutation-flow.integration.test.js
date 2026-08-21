@@ -64,26 +64,48 @@ test("show integration confirms rereads, conflicts, stale recovery, cascade and 
 
     const external = await mutations.updateShow(current, { ...current, title: "Other device" });
     assert.equal(external.ok, true);
+    const firstDraft = { ...current, title: "My stale draft" };
     const conflict = await sync.mutate({ accountId: user.id, generation: 1, operation: "updateShow",
-      args: [current, { ...current, title: "My stale draft" }], submitted: { draft: { title: "My stale draft" } } });
+      args: [current, firstDraft], submitted: { draft: firstDraft } });
     assert.equal(conflict.outcome, "conflict");
     assert.equal(sync.getState().status, "cloud_conflict");
     assert.equal(sync.getState().conflict.submission.submitted.draft.title, "My stale draft");
     assert.equal(sync.getState().snapshot.shows[0].title, "Other device");
     assert.equal(sync.clearConflict(), true);
+    assert.equal(sync.getState().snapshot.shows[0].title, "Other device");
+
+    current = sync.getState().snapshot.shows[0];
+    assert.equal((await mutations.updateShow(current, { ...current, description: "Second device change" })).ok, true);
+    const retryDraft = { ...current, title: "Explicitly reviewed draft" };
+    assert.equal((await sync.mutate({ accountId: user.id, generation: 1, operation: "updateShow",
+      args: [current, retryDraft], submitted: { draft: retryDraft } })).outcome, "conflict");
+    assert.equal(sync.getState().conflict.currentRecord.revision, "4");
+    const refreshedForRetry = sync.getState().conflict.currentRecord;
+    assert.equal(sync.clearConflict(), true);
+    const explicitRetry = await sync.mutate({ accountId: user.id, generation: 1, operation: "updateShow",
+      args: [refreshedForRetry, retryDraft], submitted: { draft: retryDraft } });
+    assert.equal(explicitRetry.ok, true);
+    assert.equal(sync.getState().snapshot.shows[0].revision, "5");
+    assert.equal(sync.getState().snapshot.shows[0].title, "Explicitly reviewed draft");
 
     current = sync.getState().snapshot.shows[0];
     failNextRead = true;
     const uncertain = await sync.mutate({ accountId: user.id, generation: 1, operation: "updateShow", args: [current, { ...current, title: "Committed but unread" }] });
     assert.equal(uncertain.outcome, "cloud_refresh_failed");
     assert.equal(sync.getState().status, "cloud_stale_readonly");
-    assert.equal(sync.getState().snapshot.shows[0].title, "Other device");
+    assert.equal(sync.getState().snapshot.shows[0].title, "Explicitly reviewed draft");
     assert.equal((await sync.recover({ accountId: user.id, generation: 1 })).ok, true);
     current = sync.getState().snapshot.shows[0];
     assert.equal(current.title, "Committed but unread");
-    assert.equal(current.revision, "4");
+    assert.equal(current.revision, "6");
 
-    const deleted = await sync.mutate({ accountId: user.id, generation: 1, operation: "deleteShow", args: [current] });
+    assert.equal((await mutations.updateShow(current, { ...current, description: "Changed before delete" })).ok, true);
+    const deleteConflict = await sync.mutate({ accountId: user.id, generation: 1, operation: "deleteShow", args: [current], submitted: { title: current.title } });
+    assert.equal(deleteConflict.outcome, "conflict");
+    assert.equal(sync.getState().conflict.currentRecord.revision, "7");
+    const refreshedForDelete = sync.getState().conflict.currentRecord;
+    assert.equal(sync.clearConflict(), true);
+    const deleted = await sync.mutate({ accountId: user.id, generation: 1, operation: "deleteShow", args: [refreshedForDelete] });
     assert.equal(deleted.ok, true);
     assert.deepEqual(sync.getState().snapshot.totals, { shows: 0, seasons: 0 });
     assert.equal(localTrackerSentinel, JSON.stringify({ schemaVersion: 1, shows: [{ id: "local-only", title: "Never dual-written" }] }));

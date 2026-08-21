@@ -74,7 +74,7 @@
         <p id="cloudSyncMessage"></p>
         <div class="cloud-sync-actions">
           <button class="btn hidden" id="cloudSyncRetryBtn" type="button">Retry cloud refresh</button>
-          <button class="btn hidden" id="cloudConflictDiscardBtn" type="button">Discard my change and reload</button>
+          <button class="btn hidden" id="cloudConflictDiscardBtn" type="button">Review conflict</button>
         </div>
       </section>
       <section class="stats-grid" aria-label="Library summary">
@@ -255,6 +255,21 @@
     </form>
   </dialog>
 
+  <dialog id="showConflictDialog" class="conflict-dialog">
+    <article class="dialog-card">
+      <header class="dialog-header">
+        <div><p class="eyebrow">CLOUD CONFLICT</p><h2>Review this change</h2></div>
+      </header>
+      <p class="muted" id="showConflictMessage"></p>
+      <div class="conflict-comparison" id="showConflictComparison"></div>
+      <footer class="dialog-actions">
+        <button class="btn" id="showConflictCancel" type="button">Cancel</button>
+        <button class="btn" id="showConflictUseCurrent" type="button">Use current cloud version</button>
+        <button class="btn primary" id="showConflictReviewChanges" type="button">Review my changes</button>
+      </footer>
+    </article>
+  </dialog>
+
   <dialog id="tmdbDialog" class="tmdb-dialog">
     <article class="dialog-card">
       <header class="dialog-header">
@@ -294,6 +309,7 @@
   <script src="js/cloud-tracker-repository.js"></script>
   <script src="js/cloud-tracker-mutation-repository.js"></script>
   <script src="js/cloud-tracker-sync.js"></script>
+  <script src="js/show-conflict-review.js"></script>
   <script src="js/tracker-checksum.js"></script>
   <script src="js/migration-source.js"></script>
   <script src="js/migration-review.js"></script>
