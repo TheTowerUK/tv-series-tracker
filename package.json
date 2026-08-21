@@ -11,7 +11,8 @@
     "test:browser-foundation": "node --test tests/browser-foundation/*.test.js",
     "test:auth": "node --test tests/auth/*.test.js",
     "test:repository": "node --test tests/repository/*.test.js",
-    "test:migration-source": "node --test tests/migration-source/*.test.js"
+    "test:migration-source": "node --test tests/migration-source/*.test.js",
+    "test:migration-review": "node --test tests/migration-review/*.test.js"
   },
   "devDependencies": {
     "supabase": "2.114.0"

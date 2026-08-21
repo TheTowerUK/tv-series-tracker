@@ -50,6 +50,22 @@
     </header>
 
     <main>
+      <section class="migration-review hidden" id="migrationReview" aria-labelledby="migrationReviewTitle" data-migration-state="idle">
+        <div class="migration-review-head">
+          <div><p class="eyebrow">DEVICE DATA REVIEW</p><h2 id="migrationReviewTitle">Choose how to prepare your cloud tracker</h2></div>
+          <p id="migrationReviewStatus" role="status" aria-live="polite"></p>
+        </div>
+        <div class="migration-choices hidden" id="migrationChoices">
+          <button class="migration-choice" type="button" data-migration-choice="keep_cloud"><strong>Keep Cloud</strong><span>Leave existing cloud data unchanged.</span></button>
+          <button class="migration-choice" type="button" data-migration-choice="replace_cloud"><strong>Replace Cloud from this device</strong><span>Make cloud match this device; cloud tracker records absent here will be removed.</span></button>
+          <button class="migration-choice" type="button" data-migration-choice="reviewed_merge"><strong>Reviewed Merge</strong><span>Change only shows and seasons you explicitly approve.</span></button>
+        </div>
+        <div class="migration-differences hidden" id="migrationDifferences">
+          <p>Unselected device data is ignored. Unselected cloud data remains unchanged.</p>
+          <div id="migrationDifferenceList"></div>
+          <p class="migration-decision-summary" id="migrationDecisionSummary"></p>
+        </div>
+      </section>
       <section class="stats-grid" aria-label="Library summary">
         <button class="stat-card" data-stat-status="" type="button"><span id="statTotal">0</span><small>All Shows</small></button>
         <button class="stat-card watching" data-stat-status="Watching" type="button"><span id="statWatching">0</span><small>Watching</small></button>
@@ -267,7 +283,10 @@
   <script src="js/cloud-tracker-repository.js"></script>
   <script src="js/tracker-checksum.js"></script>
   <script src="js/migration-source.js"></script>
+  <script src="js/migration-review.js"></script>
+  <script src="js/migration-state.js"></script>
   <script src="js/auth-ui.js"></script>
+  <script src="js/migration-review-ui.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

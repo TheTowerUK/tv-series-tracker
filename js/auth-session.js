@@ -63,6 +63,7 @@
     if (typeof onStateChange !== "function") throw new TypeError("onStateChange must be a function");
 
     let currentState = applicationState(STATES.INITIALIZING);
+    const listeners = new Set([onStateChange]);
     let accountId = null;
     let subscription = null;
     let startPromise = null;
@@ -70,7 +71,7 @@
 
     function setState(status, options = {}) {
       currentState = applicationState(status, options);
-      onStateChange(currentState);
+      for (const listener of listeners) listener(currentState);
       return currentState;
     }
 
@@ -219,6 +220,14 @@
       if (subscription && typeof subscription.unsubscribe === "function") subscription.unsubscribe();
       subscription = null;
       accountId = null;
+      listeners.clear();
+    }
+
+    function subscribe(listener) {
+      if (typeof listener !== "function") throw new TypeError("listener must be a function");
+      listeners.add(listener);
+      listener(currentState);
+      return () => listeners.delete(listener);
     }
 
     return Object.freeze({
@@ -228,6 +237,7 @@
       requestPasswordlessSignIn,
       signOut,
       start,
+      subscribe,
       verifyEmailOtp
     });
   }

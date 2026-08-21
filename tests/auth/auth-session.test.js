@@ -190,3 +190,14 @@ test("start is idempotent and installs only one listener", async () => {
   assert.equal(client.calls.filter(([name]) => name === "listener").length, 1);
   assert.equal(client.calls.filter(([name]) => name === "getSession").length, 1);
 });
+
+test("secondary subscribers receive state and can unsubscribe", async () => {
+  const client = fakeClient({ session: null });
+  const auth = createAuthSession({ client, onStateChange() {} });
+  const states = [];
+  const unsubscribe = auth.subscribe((state) => states.push(state.status));
+  await auth.start();
+  unsubscribe();
+  await auth.requestPasswordlessSignIn("person@example.test");
+  assert.deepEqual(states, [STATES.INITIALIZING, STATES.INITIALIZING, STATES.SIGNED_OUT]);
+});
