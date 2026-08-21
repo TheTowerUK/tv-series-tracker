@@ -12,11 +12,11 @@ test("backup opportunity precedes confirmation and local source is never removed
     /removeItem\s*\(\s*["']tvSeriesTrackerData\.v1|localStorage\.clear\s*\(/);
 });
 
-test("cloud authority is read-only and no Phase 2.6 mutation RPC is present", () => {
+test("verified cutover delegates writable authority without direct RPC calls", () => {
   const app = read("../../js/app.js"), ui = read("../../js/migration-review-ui.js"), service = read("../../js/migration-execution.js");
-  assert.match(app, /authority !== "local"/);
-  assert.match(app, /setMutationControlsDisabled\(true\)/);
+  assert.match(app, /setCloudWritable/);
+  assert.match(ui, /createCloudTrackerSync/);
   assert.match(ui, /executionService\.clear\(\)/);
-  assert.doesNotMatch(ui + service, /tracker_(?:create|update|delete)_show|tracker_(?:upsert|delete)_season|tracker_restore_v2/);
+  assert.doesNotMatch(app + ui, /\.rpc\s*\(/);
   assert.equal((service.match(/tracker_migrate_v1/g) || []).length > 0, true);
 });

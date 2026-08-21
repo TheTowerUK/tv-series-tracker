@@ -6,8 +6,9 @@
   const checksum = root.TV_TRACKER_CHECKSUM, review = root.TV_TRACKER_MIGRATION_REVIEW_MODEL;
   const migration = root.TV_TRACKER_MIGRATION_STATE, marker = root.TV_TRACKER_MIGRATION_MARKER;
   const execution = root.TV_TRACKER_MIGRATION_EXECUTION, app = root.TV_TRACKER_APP;
+  const mutationModule = root.TV_TRACKER_CLOUD_MUTATION_REPOSITORY, syncModule = root.TV_TRACKER_CLOUD_SYNC;
   const panel = root.document.getElementById("migrationReview");
-  if (!auth || !panel || !bootstrap || !repositories || !source || !checksum || !review || !migration || !marker || !execution || !app) return;
+  if (!auth || !panel || !bootstrap || !repositories || !source || !checksum || !review || !migration || !marker || !execution || !app || !mutationModule || !syncModule) return;
   const client = bootstrap.getClient();
   if (!client) return;
 
@@ -16,8 +17,11 @@
     summary: root.document.getElementById("migrationDecisionSummary"), backup: root.document.getElementById("migrationBackupBtn"),
     execute: root.document.getElementById("migrationExecuteBtn") };
   const cloudRepository = repositories.createCloudTrackerRepository({ client });
+  const mutationRepository = mutationModule.createCloudTrackerMutationRepository({ client });
+  const cloudSync = syncModule.createCloudTrackerSync({ cloudRepository, mutationRepository, onStateChange: app.applyCloudSyncState });
   const markerStore = marker.createKeepCloudMarkerStore({ storage: root.localStorage, sha256Hex: checksum.sha256Hex });
   let selectedMode = null, selections = {};
+  let authGeneration = 0, currentAccountId = null;
 
   const stateService = migration.createMigrationStateService({ sourceInspector: source.inspectMigrationSource,
     checksum: checksum.trackerChecksum, cloudRepository, cloudPayload: review.cloudTrackerPayload,
@@ -31,6 +35,10 @@
   function hidden(element, value) { if (element) element.classList.toggle("hidden", value); }
   function resetChoice() { selectedMode = null; selections = {}; els.execute.disabled = true; }
   function showLocal() { app.returnToLocal(); }
+  function showCloud(cloudShows, accountId) {
+    if (!accountId || accountId !== currentAccountId) return;
+    app.setCloudWritable({ controller: cloudSync, accountId, generation: authGeneration, cloudShows: cloudShows || [] });
+  }
 
   function renderReview(state) {
     panel.dataset.migrationState = state.status;
@@ -41,7 +49,7 @@
     else if (state.status === migration.STATES.SOURCE_ERROR) { showLocal(); els.status.textContent = "Device tracker data cannot be safely reviewed. Cloud replacement and merge are unavailable; your local tracker is unchanged."; }
     else if (state.status === migration.STATES.CLOUD_ERROR) { showLocal(); els.status.textContent = "Cloud tracker data could not be inspected safely. Try again after checking your connection."; }
     else if (state.status === migration.STATES.REVIEW_REQUIRED) els.status.textContent = "Choose how this device should relate to your existing cloud tracker. Review and confirm before anything changes.";
-    else if ([migration.STATES.COMPLETED, migration.STATES.KEEP_DISMISSED].includes(state.status)) app.setCloudReadOnly(state.cloudShows || []);
+    else if ([migration.STATES.COMPLETED, migration.STATES.KEEP_DISMISSED].includes(state.status)) showCloud(state.cloudShows, state.accountId);
   }
 
   function renderExecution(state) {
@@ -50,7 +58,7 @@
     else if (state.status === execution.STATES.FAILURE) { showLocal(); els.status.textContent = state.error && state.error.code === "unauthenticated"
       ? "Your session expired. Sign in again; device data remains unchanged."
       : "The migration could not be safely verified. Device data remains unchanged; retry after checking your session and connection."; els.execute.disabled = false; }
-    else if (state.status === execution.STATES.CLOUD_READ_ONLY) { app.setCloudReadOnly(state.cloudShows || []); hidden(panel, true); }
+    else if (state.status === execution.STATES.CLOUD_READ_ONLY) { showCloud(state.cloudShows, state.accountId); hidden(panel, true); }
     else if (state.status === execution.STATES.IDLE) showLocal();
   }
 
@@ -91,7 +99,12 @@
     await executionService.execute({ accountId: prepared.accountId, prepared, mode: selectedMode, mergeDecisions: decisions });
   });
 
-  auth.subscribe(authState => { if (authState.status !== "authenticated") executionService.clear(); stateService.applyAuthState(authState); });
-  root.TV_TRACKER_MIGRATION_REVIEW = Object.freeze({ executionService, markerStore, service: stateService,
+  auth.subscribe(authState => {
+    const nextAccountId = authState.status === "authenticated" ? authState.accountId : null;
+    if (nextAccountId !== currentAccountId) { authGeneration += 1; currentAccountId = nextAccountId; showLocal(); }
+    if (!nextAccountId) executionService.clear();
+    stateService.applyAuthState(authState);
+  });
+  root.TV_TRACKER_MIGRATION_REVIEW = Object.freeze({ cloudSync, executionService, markerStore, service: stateService,
     getPreparedDecisions: () => review.decisionsFromSelections(stateService.getState().reviewItems || [], selections) });
 })(typeof globalThis === "object" ? globalThis : this);

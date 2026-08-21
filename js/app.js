@@ -28,20 +28,24 @@
     dateInput: $("dateInput"), descriptionInput: $("descriptionInput"), posterInput: $("posterInput"),
     findArtworkBtn: $("findArtworkBtn"), tmdbStatus: $("tmdbStatus"),
     tmdbDialog: $("tmdbDialog"), closeTmdbBtn: $("closeTmdbBtn"), tmdbResults: $("tmdbResults"), tmdbQuerySummary: $("tmdbQuerySummary"),
-    seasonEditor: $("seasonEditor"), addSeasonBtn: $("addSeasonBtn"), deleteShowBtn: $("deleteShowBtn"),
+    seasonEditor: $("seasonEditor"), addSeasonBtn: $("addSeasonBtn"), deleteShowBtn: $("deleteShowBtn"), saveShowBtn: $("saveShowBtn"),
     seasonRowTemplate: $("seasonRowTemplate"), posterPreview: $("posterPreview"),
     detailDialog: $("detailDialog"), closeDetailBtn: $("closeDetailBtn"), detailPoster: $("detailPoster"),
     detailTitle: $("detailTitle"), detailPlatform: $("detailPlatform"), detailStatus: $("detailStatus"),
     detailMeta: $("detailMeta"), detailDescription: $("detailDescription"), detailProgressText: $("detailProgressText"),
-    detailProgressFill: $("detailProgressFill"), detailSeasons: $("detailSeasons"), detailEditBtn: $("detailEditBtn")
+    detailProgressFill: $("detailProgressFill"), detailSeasons: $("detailSeasons"), detailEditBtn: $("detailEditBtn"),
+    cloudSyncStatus: $("cloudSyncStatus"), cloudSyncMessage: $("cloudSyncMessage"), cloudSyncRetryBtn: $("cloudSyncRetryBtn"),
+    cloudConflictDiscardBtn: $("cloudConflictDiscardBtn")
   };
 
   const statButtons = [...document.querySelectorAll("[data-stat-status]")];
   const statusChips = [...document.querySelectorAll("[data-status-chip]")];
+  let cloudController = null;
+  let cloudContext = null;
 
   function deepCopy(value){ return JSON.parse(JSON.stringify(value)); }
   function save(){
-    if(authority !== "local") throw new Error("Cloud tracker is read-only until cloud editing is added.");
+    if(authority !== "local") throw new Error("Local repository writes require local authority.");
     const result = localRepository.writeTracker(shows);
     if(!result.ok) throw new Error("Unable to save tracker data on this device.");
   }
@@ -54,32 +58,72 @@
     shows = deepCopy(result.data.shows);
     refreshPlatformOptions();
     applySavedView();
+    setMutationControlsDisabled(false);
     render();
   }
 
-  function setMutationControlsDisabled(disabled){
-    [els.addShowBtn,els.importFile,els.resetBtn,els.detailEditBtn].forEach(element=>{ if(element) element.disabled=disabled; });
-    document.body.dataset.trackerAuthority = disabled ? "cloud_read_only" : "local";
-    if(els.localNote) els.localNote.textContent = disabled
-      ? "Verified cloud data is active in read-only mode. Cloud editing arrives in Phase 2.6."
-      : "Your tracker stays on this device until you sign in and choose how to migrate it.";
+  function cloudAuthority(){ return authority.startsWith("cloud_"); }
+  function showWritesReady(){ return authority === "local" || authority === "cloud_ready"; }
+
+  function setEditorControls(){
+    const busy = ["cloud_mutating","cloud_refreshing","cloud_conflict","cloud_stale_readonly"].includes(authority);
+    [els.saveShowBtn,els.deleteShowBtn,els.findArtworkBtn].forEach(element=>{ if(element) element.disabled=busy; });
+    const editingCloudShow = cloudAuthority() && Boolean(els.showId.value);
+    if(els.addSeasonBtn) els.addSeasonBtn.disabled = busy || editingCloudShow;
+    els.seasonEditor.querySelectorAll(".season-status,.remove-season").forEach(element=>{ element.disabled = busy || editingCloudShow; });
   }
 
-  function setCloudReadOnly(cloudShows){
-    if(!Array.isArray(cloudShows)) throw new TypeError("Verified cloud tracker is required.");
+  function setMutationControlsDisabled(disabled){
+    const ready = !disabled;
+    [els.addShowBtn,els.detailEditBtn].forEach(element=>{ if(element) element.disabled=!ready; });
+    [els.importFile,els.resetBtn].forEach(element=>{ if(element) element.disabled=cloudAuthority(); });
+    document.body.dataset.trackerAuthority = authority;
+    if(els.localNote) els.localNote.textContent = authority === "local"
+      ? "Your tracker stays on this device until you sign in and choose how to migrate it."
+      : authority === "cloud_ready" ? "Verified cloud data is active. Changes are confirmed from cloud before display."
+      : "Verified cloud data remains displayed, but changes are temporarily unavailable.";
+    setEditorControls();
+  }
+
+  function applyCloudSyncState(state){
+    if(!state || !state.status || authority === "local") return;
+    authority = state.status;
+    if(state.snapshot && ["cloud_ready","cloud_conflict"].includes(state.status)) shows = deepCopy(state.snapshot.shows);
+    const stale = state.status === "cloud_stale_readonly", conflict = state.status === "cloud_conflict";
+    els.cloudSyncStatus?.classList.toggle("hidden", !stale && !conflict && !["cloud_mutating","cloud_refreshing"].includes(state.status));
+    els.cloudSyncRetryBtn?.classList.toggle("hidden", !stale);
+    els.cloudConflictDiscardBtn?.classList.toggle("hidden", !conflict);
+    if(els.cloudSyncMessage) els.cloudSyncMessage.textContent = stale
+      ? "Cloud data cannot currently be updated safely. Refresh before making more changes."
+      : conflict ? "This show changed elsewhere. Discard your attempted change to reload the current cloud version."
+      : state.status === "cloud_mutating" ? "Saving your cloud change…"
+      : state.status === "cloud_refreshing" ? "Confirming the latest cloud tracker…" : "";
+    setMutationControlsDisabled(state.status !== "cloud_ready");
+    if(["cloud_ready","cloud_conflict"].includes(state.status)){ refreshPlatformOptions(); visibleLimit=PAGE_SIZE; render(); }
+  }
+
+  function showCloudFailure(){
+    if(!els.cloudSyncStatus||!els.cloudSyncMessage) return;
+    els.cloudSyncStatus.classList.remove("hidden");
+    els.cloudSyncMessage.textContent="The cloud change could not be completed. Review the form or refresh before trying again.";
+  }
+
+  function setCloudWritable({controller,accountId,generation,cloudShows}){
+    if(!controller || !accountId || generation == null || !Array.isArray(cloudShows)) throw new TypeError("Verified writable cloud context is required.");
     [els.showDialog,els.detailDialog,els.tmdbDialog].forEach(dialog=>{ if(dialog?.open) dialog.close(); });
-    authority = "cloud_read_only";
-    shows = deepCopy(cloudShows);
-    visibleLimit = PAGE_SIZE;
-    refreshPlatformOptions(); clearFilters(); setMutationControlsDisabled(true); render();
+    cloudController=controller; cloudContext={accountId,generation}; authority="cloud_ready";
+    const snapshot={shows:deepCopy(cloudShows),totals:{shows:cloudShows.length,seasons:cloudShows.reduce((sum,show)=>sum+(show.seasons||[]).length,0)}};
+    cloudController.activate({...cloudContext,snapshot});
   }
 
   function returnToLocal(){
+    cloudController?.invalidate(); cloudController=null; cloudContext=null;
     authority = "local";
     const result = localRepository.readTracker({baseline:baselineShows});
     shows = deepCopy(result.data.shows);
     visibleLimit = PAGE_SIZE;
     refreshPlatformOptions(); clearFilters(); setMutationControlsDisabled(false); render();
+    els.cloudSyncStatus?.classList.add("hidden");
   }
 
   function slug(value){ return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
@@ -232,8 +276,8 @@
       </div>`;
     body.querySelector(".view-show").addEventListener("click",()=>openDetail(show));
     const editButton = body.querySelector(".edit-show");
-    editButton.disabled = authority !== "local";
-    editButton.classList.toggle("hidden", authority !== "local");
+    editButton.disabled = !showWritesReady();
+    editButton.classList.toggle("hidden", !showWritesReady());
     editButton.addEventListener("click",()=>openEditor(show));
     body.querySelector(".card-title").classList.add("clickable-title");
     body.querySelector(".card-title").addEventListener("click",()=>openDetail(show));
@@ -358,6 +402,7 @@
   }
 
   function openEditor(show=null){
+    if(!showWritesReady()) return;
     els.showForm.reset();
     els.seasonEditor.innerHTML = "";
     pendingTmdbMatch = null;
@@ -382,6 +427,7 @@
     }
     renumberSeasonRows();
     refreshPosterPreview();
+    setEditorControls();
     els.showDialog.showModal();
   }
 
@@ -399,11 +445,10 @@
 
   function renumberSeasonRows(){ [...els.seasonEditor.children].forEach((row,i)=> row.querySelector(".season-number").textContent = `Season ${i+1}`); }
 
-  function saveEditor(){
-    if(authority !== "local") return;
+  function editorRecord(){
     const id = els.showId.value || `tv-${Date.now()}`;
     const now = new Date().toISOString();
-    const record = {
+    return {
       id,
       platform: els.platformInput.value.trim() || "Unassigned",
       title: els.titleInput.value.trim(),
@@ -415,18 +460,39 @@
       createdAt: now,
       updatedAt: now
     };
+  }
+
+  async function saveEditor(){
+    if(!showWritesReady()) return;
+    const record = editorRecord();
+    if(authority === "cloud_ready"){
+      const current = shows.find(show=>show.id===els.showId.value);
+      if(current && !window.TV_TRACKER_CLOUD_MUTATIONS.buildShowPatch(current,record)){ els.showDialog.close(); return; }
+      const operation = current ? "updateShow" : "createShow";
+      const args = current ? [current,record] : [record];
+      const result = await cloudController.mutate({...cloudContext,operation,args,submitted:{draft:record}});
+      if(result.ok || result.outcome === "conflict") els.showDialog.close();
+      else if(authority === "cloud_ready") showCloudFailure();
+      return;
+    }
+    const id = record.id;
     const index = shows.findIndex(s=>s.id===id);
     if(index>=0){ record.createdAt = shows[index].createdAt || record.createdAt; shows[index]=record; }
     else shows.push(record);
     save(); refreshPlatformOptions(); visibleLimit = PAGE_SIZE; render(); els.showDialog.close();
   }
 
-  function deleteCurrent(){
-    if(authority !== "local") return;
+  async function deleteCurrent(){
+    if(!showWritesReady()) return;
     const id = els.showId.value;
     const show = shows.find(s=>s.id===id);
     if(!show) return;
-    if(confirm(`Delete "${show.title}" from this device?`)){
+    if(authority === "cloud_ready"){
+      if(!confirm(`Delete "${show.title}" from your cloud tracker?`)) return;
+      const result=await cloudController.mutate({...cloudContext,operation:"deleteShow",args:[show],submitted:{showId:show.id,title:show.title}});
+      if(result.ok || result.outcome === "conflict") els.showDialog.close();
+      else if(authority === "cloud_ready") showCloudFailure();
+    }else if(confirm(`Delete "${show.title}" from this device?`)){
       shows = shows.filter(s=>s.id!==id);
       save(); refreshPlatformOptions(); visibleLimit = PAGE_SIZE; render(); els.showDialog.close();
     }
@@ -524,6 +590,8 @@
     els.detailDialog.close();
     if(show) openEditor(show);
   });
+  els.cloudSyncRetryBtn?.addEventListener("click",async()=>{ if(cloudController&&cloudContext) await cloudController.recover(cloudContext); });
+  els.cloudConflictDiscardBtn?.addEventListener("click",()=>{ cloudController?.clearConflict(); });
   els.detailDialog.addEventListener("click",e=>{
     const rect = els.detailDialog.getBoundingClientRect();
     const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
@@ -535,5 +603,5 @@
     console.error(err);
     els.cardsContainer.innerHTML = `<div class="empty-state"><h2>Unable to load catalogue</h2><p>${escapeHtml(err.message)}</p></div>`;
   }
-  window.TV_TRACKER_APP = Object.freeze({exportLocalBackup,getAuthority:()=>authority,returnToLocal,setCloudReadOnly});
+  window.TV_TRACKER_APP = Object.freeze({applyCloudSyncState,exportLocalBackup,getAuthority:()=>authority,returnToLocal,setCloudWritable});
 })();

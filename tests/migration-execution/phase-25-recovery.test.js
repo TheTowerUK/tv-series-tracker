@@ -15,16 +15,17 @@ test("fresh Auth inspection clears prior cloud authority before any new snapshot
   assert.match(ui, /STATES\.LOADING\) \{ showLocal\(\)/);
   assert.match(ui, /STATES\.CLOUD_ERROR\) \{ showLocal\(\)/);
   assert.match(ui, /STATES\.SOURCE_ERROR\) \{ showLocal\(\)/);
-  assert.match(ui, /STATES\.CLOUD_READ_ONLY\).*app\.setCloudReadOnly/s);
+  assert.match(ui, /STATES\.CLOUD_READ_ONLY\).*showCloud/s);
+  assert.match(ui, /app\.setCloudWritable/);
 });
 
-test("all LocalStorage mutation entry points guard read-only authority", () => {
+test("all LocalStorage mutation entry points remain isolated from cloud authority", () => {
   const app = read("../../js/app.js");
-  for (const name of ["saveEditor", "deleteCurrent", "importJson", "resetBaseline"]) {
-    assert.match(app, new RegExp(`function ${name}\\([^)]*\\)\\{[\\s\\S]{0,80}authority !== \\\"local\\\"`));
-  }
+  assert.match(app, /async function saveEditor\(\)[\s\S]*authority === "cloud_ready"/);
+  assert.match(app, /async function deleteCurrent\(\)[\s\S]*authority === "cloud_ready"/);
+  for (const name of ["importJson", "resetBaseline"]) assert.match(app, new RegExp(`function ${name}\\([^)]*\\)\\{[\\s\\S]{0,80}authority !== \\\"local\\\"`));
   assert.match(app, /showDialog,els\.detailDialog,els\.tmdbDialog/);
-  assert.match(app, /setMutationControlsDisabled\(true\)/);
+  assert.match(app, /cloudController\?\.invalidate\(\)/);
   assert.doesNotMatch(app, /removeItem\s*\(\s*["']tvSeriesTrackerData\.v1|localStorage\.clear\s*\(/);
 });
 

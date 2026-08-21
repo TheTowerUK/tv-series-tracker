@@ -70,6 +70,13 @@
           </div>
         </div>
       </section>
+      <section class="cloud-sync-status hidden" id="cloudSyncStatus" aria-live="polite">
+        <p id="cloudSyncMessage"></p>
+        <div class="cloud-sync-actions">
+          <button class="btn hidden" id="cloudSyncRetryBtn" type="button">Retry cloud refresh</button>
+          <button class="btn hidden" id="cloudConflictDiscardBtn" type="button">Discard my change and reload</button>
+        </div>
+      </section>
       <section class="stats-grid" aria-label="Library summary">
         <button class="stat-card" data-stat-status="" type="button"><span id="statTotal">0</span><small>All Shows</small></button>
         <button class="stat-card watching" data-stat-status="Watching" type="button"><span id="statWatching">0</span><small>Watching</small></button>
@@ -285,6 +292,8 @@
   <script src="js/tracker-row-adapter.js"></script>
   <script src="js/tracker-repository.js"></script>
   <script src="js/cloud-tracker-repository.js"></script>
+  <script src="js/cloud-tracker-mutation-repository.js"></script>
+  <script src="js/cloud-tracker-sync.js"></script>
   <script src="js/tracker-checksum.js"></script>
   <script src="js/migration-source.js"></script>
   <script src="js/migration-review.js"></script>
