@@ -45,17 +45,24 @@
     return Boolean(left && right && left.accountId && left.accountId === right.accountId && left.generation === right.generation);
   }
 
-  function conflictRecord(submission, freshSnapshot) {
-    const current = submission && submission.args && submission.args[0];
-    return current && current.id ? freshSnapshot.shows.find((show) => show.id === current.id) || null : null;
+  function conflictTarget(submission, freshSnapshot) {
+    const show = submission && submission.args && submission.args[0];
+    const operation = submission && submission.operation;
+    const parentRecord = show && show.id ? freshSnapshot.shows.find((candidate) => candidate.id === show.id) || null : null;
+    if (!["createSeason", "updateSeason", "deleteSeason"].includes(operation)) return { currentRecord: parentRecord, parentRecord: null };
+    const season = submission.args[1];
+    const currentRecord = parentRecord && season ? parentRecord.seasons.find((candidate) => candidate.number === season.number) || null : null;
+    return { currentRecord, parentRecord };
   }
 
   function resolvedConflict(submission, result, supplied, freshSnapshot) {
+    const target = conflictTarget(submission, freshSnapshot);
     return clone({
       context: supplied,
       submission,
       result: { outcome: "conflict", conflict: result.conflict },
-      currentRecord: conflictRecord(submission, freshSnapshot)
+      currentRecord: target.currentRecord,
+      parentRecord: target.parentRecord
     });
   }
 
@@ -164,7 +171,7 @@
         return result;
       }
       if (result.outcome === "conflict") {
-        conflict = clone({ context: supplied, submission, result: { outcome: "conflict", conflict: result.conflict }, currentRecord: null });
+        conflict = clone({ context: supplied, submission, result: { outcome: "conflict", conflict: result.conflict }, currentRecord: null, parentRecord: null });
         publish(STATES.CLOUD_REFRESHING);
         const refreshed = await readFresh(run, supplied);
         if (refreshed.discarded) return reject("operation_discarded");

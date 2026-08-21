@@ -29,7 +29,6 @@ test("cloud Add Edit and Delete route once through the controller without direct
   assert.match(app, /operation = current \? "updateShow" : "createShow"/);
   assert.match(app, /cloudController\.mutate\(\{\.\.\.cloudContext,operation,args,submitted/);
   assert.match(app, /operation:"deleteShow",args:\[show\]/);
-  assert.equal((app.match(/cloudController\.mutate/g) || []).length, 2);
   assert.doesNotMatch(app, /\.rpc\s*\(/);
 });
 
@@ -53,12 +52,14 @@ test("existing local Add Edit Delete persistence remains in local branches", () 
   assert.match(app, /Delete.*from this device.*shows = shows\.filter.*save\(\)/s);
 });
 
-test("cloud editing isolates metadata from deferred season mutations", () => {
+test("cloud metadata editor remains isolated while season mutations use detail controls", () => {
   const app = read("../../js/app.js");
   assert.match(app, /editingCloudShow.*Boolean\(els\.showId\.value\)/);
   assert.match(app, /addSeasonBtn.*disabled = busy \|\| editingCloudShow/);
   assert.match(app, /season-status,.remove-season.*disabled = busy \|\| editingCloudShow/);
-  assert.doesNotMatch(app, /operation:\s*["'](?:createSeason|updateSeason|deleteSeason)/);
+  assert.match(app, /function addCloudSeason/);
+  assert.match(app, /function changeCloudSeasonStatus/);
+  assert.match(app, /function deleteCloudSeason/);
 });
 
 test("busy stale and conflict states protect controls and expose read-only recovery", () => {

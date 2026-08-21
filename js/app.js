@@ -43,6 +43,7 @@
   let cloudController = null;
   let cloudContext = null;
   let conflictReview = null;
+  let seasonConflictReview = null;
 
   function deepCopy(value){ return JSON.parse(JSON.stringify(value)); }
   function save(){
@@ -78,6 +79,7 @@
     const ready = !disabled;
     [els.addShowBtn,els.detailEditBtn].forEach(element=>{ if(element) element.disabled=!ready; });
     [els.importFile,els.resetBtn].forEach(element=>{ if(element) element.disabled=cloudAuthority(); });
+    document.querySelectorAll(".cloud-season-control").forEach(element=>{ element.disabled=authority!=="cloud_ready"; });
     document.body.dataset.trackerAuthority = authority;
     if(els.localNote) els.localNote.textContent = authority === "local"
       ? "Your tracker stays on this device until you sign in and choose how to migrate it."
@@ -101,8 +103,14 @@
       : state.status === "cloud_refreshing" ? "Confirming the latest cloud tracker…" : "";
     setMutationControlsDisabled(state.status !== "cloud_ready");
     if(["cloud_ready","cloud_conflict"].includes(state.status)){ refreshPlatformOptions(); visibleLimit=PAGE_SIZE; render(); }
-    if(conflict && state.conflict) conflictReview?.show(state.conflict);
-    if(stale) conflictReview?.close();
+    if(conflict && state.conflict) {
+      conflictReview?.show(state.conflict);
+      seasonConflictReview?.show(state.conflict);
+    }
+    if(stale) { conflictReview?.close(); seasonConflictReview?.close(); }
+    if(["cloud_ready","cloud_conflict"].includes(state.status) && els.detailDialog.open) {
+      const current=shows.find(show=>show.id===els.detailDialog.dataset.showId); if(current) openDetail(current); else els.detailDialog.close();
+    }
   }
 
   function showCloudFailure(){
@@ -121,6 +129,7 @@
 
   function returnToLocal(){
     conflictReview?.close();
+    seasonConflictReview?.close();
     cloudController?.invalidate(); cloudController=null; cloudContext=null;
     authority = "local";
     const result = localRepository.readTracker({baseline:baselineShows});
@@ -307,9 +316,41 @@
     els.detailSeasons.innerHTML = (show.seasons || []).map(season => `
       <div class="detail-season ${slug(season.status)}">
         <span class="detail-season-number">Season ${season.number}</span>
-        <span class="detail-season-state">${escapeHtml(season.status)}</span>
+        ${cloudAuthority() ? `<div class="detail-season-actions"><select class="cloud-season-control season-cloud-status" data-season-number="${season.number}" aria-label="Season ${season.number} status">${SEASON_STATUSES.map(status=>`<option${status===season.status?" selected":""}>${escapeHtml(status)}</option>`).join("")}</select><button class="text-btn danger-ghost cloud-season-control delete-cloud-season" data-season-number="${season.number}" type="button">Delete</button></div>` : `<span class="detail-season-state">${escapeHtml(season.status)}</span>`}
       </div>`).join("") || `<p class="muted">No seasons recorded.</p>`;
-    els.detailDialog.showModal();
+    if(cloudAuthority()) els.detailSeasons.insertAdjacentHTML("beforeend",`<button class="btn detail-add-season cloud-season-control" type="button">Add next season</button>`);
+    els.detailSeasons.querySelectorAll(".season-cloud-status").forEach(select=>select.addEventListener("change",()=>changeCloudSeasonStatus(show,Number(select.dataset.seasonNumber),select)));
+    els.detailSeasons.querySelectorAll(".delete-cloud-season").forEach(button=>button.addEventListener("click",()=>deleteCloudSeason(show,Number(button.dataset.seasonNumber))));
+    els.detailSeasons.querySelector(".detail-add-season")?.addEventListener("click",()=>addCloudSeason(show));
+    setMutationControlsDisabled(authority!=="cloud_ready");
+    if(!els.detailDialog.open) els.detailDialog.showModal();
+  }
+
+  async function addCloudSeason(show){
+    if(authority!=="cloud_ready") return;
+    const number=(show.seasons.length?Math.max(...show.seasons.map(season=>season.number)):0)+1;
+    const season={number,status:"Not Started"};
+    const result=await cloudController.mutate({...cloudContext,operation:"createSeason",args:[show,season],submitted:{proposedStatus:season.status,seasonNumber:number}});
+    if(!result.ok&&result.outcome!=="conflict"&&authority==="cloud_ready") showCloudFailure();
+  }
+
+  async function changeCloudSeasonStatus(show,number,select){
+    const season=show.seasons.find(candidate=>candidate.number===number);
+    if(!season||authority!=="cloud_ready") return;
+    const proposedStatus=select.value; select.value=season.status;
+    if(proposedStatus===season.status) return;
+    const result=await cloudController.mutate({...cloudContext,operation:"updateSeason",args:[show,{...season,status:proposedStatus}],submitted:{proposedStatus,seasonNumber:number}});
+    if(!result.ok&&result.outcome!=="conflict"&&authority==="cloud_ready") showCloudFailure();
+  }
+
+  async function deleteCloudSeason(show,number){
+    const season=show.seasons.find(candidate=>candidate.number===number);
+    if(!season||authority!=="cloud_ready") return;
+    const maximum=Math.max(...show.seasons.map(candidate=>candidate.number));
+    if(number!==maximum){ alert("Only the final season can be deleted in cloud mode. Middle-season removal and renumbering are not supported yet."); return; }
+    if(!confirm(`Delete Season ${number} from your cloud tracker?`)) return;
+    const result=await cloudController.mutate({...cloudContext,operation:"deleteSeason",args:[show,season],submitted:{seasonNumber:number}});
+    if(!result.ok&&result.outcome!=="conflict"&&authority==="cloud_ready") showCloudFailure();
   }
 
   function tmdbToken(){
@@ -606,7 +647,22 @@
     },
     onCancel:()=>{}
   });
-  els.cloudConflictDiscardBtn?.addEventListener("click",()=>{ const state=cloudController?.getState(); if(state?.conflict?.currentRecord) conflictReview.show(state.conflict); });
+  seasonConflictReview = window.TV_TRACKER_SEASON_CONFLICT_REVIEW.createSeasonConflictReview({document,
+    onUseCurrent:()=>cloudController?.clearConflict(),
+    onReview:model=>{
+      cloudController?.clearConflict();
+      if(model.kind==="update"&&model.currentStatus===model.proposedStatus){ seasonConflictReview.close(); return; }
+      if(model.kind==="delete"&&!model.isFinal){ seasonConflictReview.close(); return; }
+      seasonConflictReview.confirmRetry(model);
+    },
+    onRetry:async model=>{
+      if(authority!=="cloud_ready"||!model.parent||!model.current) return;
+      if(model.kind==="update") await cloudController.mutate({...cloudContext,operation:"updateSeason",args:[model.parent,{...model.current,status:model.proposedStatus}],submitted:{proposedStatus:model.proposedStatus,seasonNumber:model.current.number}});
+      else if(model.kind==="delete") await deleteCloudSeason(model.parent,model.current.number);
+    },
+    onCancel:()=>{}
+  });
+  els.cloudConflictDiscardBtn?.addEventListener("click",()=>{ const state=cloudController?.getState(); if(state?.conflict){ conflictReview.show(state.conflict); seasonConflictReview.show(state.conflict); } });
   els.detailDialog.addEventListener("click",e=>{
     const rect = els.detailDialog.getBoundingClientRect();
     const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
