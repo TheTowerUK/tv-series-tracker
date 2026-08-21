@@ -7,6 +7,7 @@ const { trackerChecksum } = require("../../js/tracker-checksum.js");
 const { validateParsedSource } = require("../../js/migration-source.js");
 const review = require("../../js/migration-review.js");
 const execution = require("../../js/migration-execution.js");
+const { STATES: MIGRATION_STATES, createMigrationStateService } = require("../../js/migration-state.js");
 
 function loadSupabase() {
   const context = { AbortController, Blob, FormData, Headers, Request, Response, TextDecoder, TextEncoder,
@@ -65,6 +66,25 @@ test("local Supabase executes keep, 352-show replace, reviewed merge and stale c
     const replaced = await replaceRepository.readTracker(); assert.deepEqual(replaced.data.totals, { shows: 352, seasons: 1028 });
     assert.equal(await trackerChecksum(review.cloudTrackerPayload(replaced.data.shows)), replacePrepared.sourceChecksum);
     assert.equal((await replaceRepository.readMigrationReceipt()).data.receipt.resultChecksum, replacePrepared.sourceChecksum);
+
+    const restoredState = createMigrationStateService({ sourceInspector: () => validated(basePayload), checksum: trackerChecksum,
+      cloudRepository: replaceRepository, cloudPayload: review.cloudTrackerPayload,
+      diffBuilder: review.buildMigrationDiff, storage: {}, baseline: [] });
+    assert.equal((await restoredState.applyAuthState({ status: "authenticated", accountId: identities[1].id })).status, MIGRATION_STATES.COMPLETED);
+    assert.equal(restoredState.getState().cloudShows.length, 352);
+
+    let interruptedRead = true, recoveredState = null;
+    const interruptedRepository = {
+      async readTracker() { if (interruptedRead) { interruptedRead = false; return { ok: false, error: { code: "network_unavailable" } }; } return replaceRepository.readTracker(); },
+      async readMigrationReceipt() { return replaceRepository.readMigrationReceipt(); }
+    };
+    const interruptedService = execution.createMigrationExecutionService({ client: identities[1].client,
+      cloudRepository: interruptedRepository, cloudPayload: review.cloudTrackerPayload, checksum: trackerChecksum,
+      onFailure: async () => { recoveredState = await restoredState.inspect(identities[1].id); } });
+    const currentPrepared = await prepare(validated(basePayload), replaceRepository);
+    assert.equal((await interruptedService.execute({ accountId: identities[1].id, prepared: currentPrepared, mode: "replace_cloud" })).status, execution.STATES.FAILURE);
+    assert.equal(recoveredState.status, MIGRATION_STATES.COMPLETED);
+    assert.equal(recoveredState.cloudShows.length, 352);
 
     const changedPayload = JSON.parse(JSON.stringify(basePayload)); changedPayload.shows[0].title += " — reviewed";
     const mergePrepared = await prepare(validated(changedPayload), replaceRepository);

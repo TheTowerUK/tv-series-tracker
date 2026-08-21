@@ -67,6 +67,7 @@
 
   function setCloudReadOnly(cloudShows){
     if(!Array.isArray(cloudShows)) throw new TypeError("Verified cloud tracker is required.");
+    [els.showDialog,els.detailDialog,els.tmdbDialog].forEach(dialog=>{ if(dialog?.open) dialog.close(); });
     authority = "cloud_read_only";
     shows = deepCopy(cloudShows);
     visibleLimit = PAGE_SIZE;
@@ -399,6 +400,7 @@
   function renumberSeasonRows(){ [...els.seasonEditor.children].forEach((row,i)=> row.querySelector(".season-number").textContent = `Season ${i+1}`); }
 
   function saveEditor(){
+    if(authority !== "local") return;
     const id = els.showId.value || `tv-${Date.now()}`;
     const now = new Date().toISOString();
     const record = {
@@ -420,6 +422,7 @@
   }
 
   function deleteCurrent(){
+    if(authority !== "local") return;
     const id = els.showId.value;
     const show = shows.find(s=>s.id===id);
     if(!show) return;
@@ -448,12 +451,12 @@
   }
 
   async function importJson(file){
-    if(!file) return;
+    if(!file || authority !== "local") return;
     try{
       const payload = JSON.parse(await file.text());
       const imported = Array.isArray(payload) ? payload : payload.shows;
       if(!Array.isArray(imported)) throw new Error("JSON does not contain a shows array.");
-      if(!confirm(`Replace this device's current ${shows.length} shows with ${imported.length} imported shows?`)) return;
+      if(authority !== "local" || !confirm(`Replace this device's current ${shows.length} shows with ${imported.length} imported shows?`)) return;
       shows = deepCopy(imported);
       save(); refreshPlatformOptions(); visibleLimit = PAGE_SIZE; render();
     }catch(err){ alert(`Import failed: ${err.message}`); }
@@ -461,6 +464,7 @@
   }
 
   function resetBaseline(){
+    if(authority !== "local") return;
     if(!confirm(`Restore the original ${baselineShows.length}-show baseline on this device? Local edits will be replaced.`)) return;
     shows = deepCopy(baselineShows);
     save(); refreshPlatformOptions(); clearFilters(); render();

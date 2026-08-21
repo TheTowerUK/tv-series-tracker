@@ -39,8 +39,22 @@ test("conflict refreshes review and failed independent verification never cuts o
   assert.equal((await conflictService.execute({ accountId: "owner", prepared: prepared(), mode: "replace_cloud" })).status, api.STATES.CONFLICT);
   assert.equal(refreshed, 1); assert.doesNotMatch(JSON.stringify(conflictService.getState()), /private/);
   const badClient = { async rpc() { return { data: envelope("success", { mode: "replace_cloud", sourceChecksum: sourceHash, resultChecksum: sourceHash, finalTotals: { shows: 1, seasons: 0 }, receipt: null }), error: null }; } };
-  const badService = api.createMigrationExecutionService({ client: badClient, cloudRepository: repo(), cloudPayload: x => x, checksum: async () => sourceHash });
+  let recovered = 0;
+  const badService = api.createMigrationExecutionService({ client: badClient, cloudRepository: repo(), cloudPayload: x => x, checksum: async () => sourceHash,
+    onFailure: async () => { recovered += 1; } });
   assert.equal((await badService.execute({ accountId: "owner", prepared: prepared(), mode: "replace_cloud" })).status, api.STATES.FAILURE);
+  assert.equal(recovered, 1);
+});
+
+test("uncertain transport failure requires a fresh state inspection before retry", async () => {
+  let recovered = 0;
+  const service = api.createMigrationExecutionService({ client: { async rpc() { throw new TypeError("Failed to fetch"); } },
+    cloudRepository: repo(), cloudPayload: x => x, checksum: async () => cloudHash,
+    onFailure: async accountId => { assert.equal(accountId, "owner"); recovered += 1; } });
+  const result = await service.execute({ accountId: "owner", prepared: prepared(), mode: "replace_cloud" });
+  assert.equal(result.status, api.STATES.FAILURE);
+  assert.deepEqual(result.error, { code: "network_unavailable" });
+  assert.equal(recovered, 1);
 });
 
 test("transport and database auth failures normalize without diagnostics", () => {

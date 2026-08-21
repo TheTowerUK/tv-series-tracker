@@ -43,7 +43,7 @@
     return Object.freeze({ ok: false, outcome: "internal_error", data: null, conflict: null, error: Object.freeze({ code: "internal_error" }) });
   }
 
-  function createMigrationExecutionService({ client, cloudRepository, cloudPayload, checksum, markerStore, onStateChange = () => {}, onConflict = async () => {} }) {
+  function createMigrationExecutionService({ client, cloudRepository, cloudPayload, checksum, markerStore, onStateChange = () => {}, onConflict = async () => {}, onFailure = async () => {} }) {
     if (!client || typeof client.rpc !== "function" || !cloudRepository || typeof cloudPayload !== "function" || typeof checksum !== "function") throw new TypeError("Execution dependencies are required");
     let current = Object.freeze({ status: STATES.IDLE, accountId: null, cloudShows: null, error: null });
     let generation = 0;
@@ -81,16 +81,26 @@
       if (run !== generation) return current;
       if (!result.ok) {
         if (result.outcome === "conflict") { publish(STATES.CONFLICT, { accountId, error: { code: "review_stale" } }); await onConflict(accountId); return current; }
-        return publish(STATES.FAILURE, { accountId, error: result.error || { code: result.outcome } });
+        const failed = publish(STATES.FAILURE, { accountId, error: result.error || { code: result.outcome } });
+        await onFailure(accountId);
+        return failed;
       }
       let verification;
       try { verification = await verify({ mode, prepared, rpcData: result.data }); }
       catch { verification = { ok: false, code: "verification_failed" }; }
       if (run !== generation) return current;
-      if (!verification.ok) return publish(STATES.FAILURE, { accountId, error: { code: verification.code } });
+      if (!verification.ok) {
+        const failed = publish(STATES.FAILURE, { accountId, error: { code: verification.code } });
+        await onFailure(accountId);
+        return failed;
+      }
       if (mode === "keep_cloud" && markerStore) {
         try { await markerStore.write(accountId, prepared.sourceChecksum); }
-        catch { return publish(STATES.FAILURE, { accountId, error: { code: "marker_unavailable" } }); }
+        catch {
+          const failed = publish(STATES.FAILURE, { accountId, error: { code: "marker_unavailable" } });
+          await onFailure(accountId);
+          return failed;
+        }
       }
       return publish(STATES.CLOUD_READ_ONLY, { accountId, cloudShows: verification.cloudShows });
     }

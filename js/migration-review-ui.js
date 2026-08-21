@@ -8,12 +8,14 @@
   const execution = root.TV_TRACKER_MIGRATION_EXECUTION, app = root.TV_TRACKER_APP;
   const panel = root.document.getElementById("migrationReview");
   if (!auth || !panel || !bootstrap || !repositories || !source || !checksum || !review || !migration || !marker || !execution || !app) return;
+  const client = bootstrap.getClient();
+  if (!client) return;
 
   const els = { status: root.document.getElementById("migrationReviewStatus"), choices: root.document.getElementById("migrationChoices"),
     differences: root.document.getElementById("migrationDifferences"), list: root.document.getElementById("migrationDifferenceList"),
     summary: root.document.getElementById("migrationDecisionSummary"), backup: root.document.getElementById("migrationBackupBtn"),
     execute: root.document.getElementById("migrationExecuteBtn") };
-  const cloudRepository = repositories.createCloudTrackerRepository({ client: bootstrap.getClient() });
+  const cloudRepository = repositories.createCloudTrackerRepository({ client });
   const markerStore = marker.createKeepCloudMarkerStore({ storage: root.localStorage, sha256Hex: checksum.sha256Hex });
   let selectedMode = null, selections = {};
 
@@ -21,9 +23,10 @@
     checksum: checksum.trackerChecksum, cloudRepository, cloudPayload: review.cloudTrackerPayload,
     diffBuilder: review.buildMigrationDiff, markerStore, storage: root.localStorage,
     baseline: root.TV_TRACKER_BASELINE, onStateChange: renderReview });
-  const executionService = execution.createMigrationExecutionService({ client: bootstrap.getClient(), cloudRepository,
+  const executionService = execution.createMigrationExecutionService({ client, cloudRepository,
     cloudPayload: review.cloudTrackerPayload, checksum: checksum.trackerChecksum, markerStore,
-    onConflict: async accountId => stateService.inspect(accountId), onStateChange: renderExecution });
+    onConflict: async accountId => stateService.inspect(accountId),
+    onFailure: async accountId => stateService.inspect(accountId), onStateChange: renderExecution });
 
   function hidden(element, value) { if (element) element.classList.toggle("hidden", value); }
   function resetChoice() { selectedMode = null; selections = {}; els.execute.disabled = true; }
@@ -34,9 +37,9 @@
     hidden(panel, [migration.STATES.IDLE, migration.STATES.COMPLETED, migration.STATES.KEEP_DISMISSED].includes(state.status));
     hidden(els.choices, state.status !== migration.STATES.REVIEW_REQUIRED); hidden(els.differences, true); resetChoice();
     if (state.status === migration.STATES.IDLE) showLocal();
-    else if (state.status === migration.STATES.LOADING) els.status.textContent = "Inspecting this device and your private cloud tracker…";
-    else if (state.status === migration.STATES.SOURCE_ERROR) els.status.textContent = "Device tracker data cannot be safely reviewed. Cloud replacement and merge are unavailable; your local tracker is unchanged.";
-    else if (state.status === migration.STATES.CLOUD_ERROR) els.status.textContent = "Cloud tracker data could not be inspected safely. Try again after checking your connection.";
+    else if (state.status === migration.STATES.LOADING) { showLocal(); els.status.textContent = "Inspecting this device and your private cloud tracker…"; }
+    else if (state.status === migration.STATES.SOURCE_ERROR) { showLocal(); els.status.textContent = "Device tracker data cannot be safely reviewed. Cloud replacement and merge are unavailable; your local tracker is unchanged."; }
+    else if (state.status === migration.STATES.CLOUD_ERROR) { showLocal(); els.status.textContent = "Cloud tracker data could not be inspected safely. Try again after checking your connection."; }
     else if (state.status === migration.STATES.REVIEW_REQUIRED) els.status.textContent = "Choose how this device should relate to your existing cloud tracker. Review and confirm before anything changes.";
     else if ([migration.STATES.COMPLETED, migration.STATES.KEEP_DISMISSED].includes(state.status)) app.setCloudReadOnly(state.cloudShows || []);
   }

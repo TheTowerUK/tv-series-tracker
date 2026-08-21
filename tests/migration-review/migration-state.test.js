@@ -86,3 +86,32 @@ test("matching keep-cloud marker suppresses repeat review and source change inva
   accepted = false;
   assert.equal((await instance.inspect("owner")).status, STATES.REVIEW_REQUIRED);
 });
+
+test("receipt takes precedence over a marker and completion always uses a fresh cloud read", async () => {
+  let markerReads = 0, trackerReads = 0;
+  const receipt = { migrationKey: "localstorage-tvSeriesTrackerData.v1", resultChecksum: "historic" };
+  const cloudRepository = { async readMigrationReceipt() { return { ok: true, data: { receipt } }; },
+    async readTracker() { trackerReads += 1; return { ok: true, data: { shows: [{ id: `fresh-${trackerReads}` }], totals: { shows: 1, seasons: 0 } } }; } };
+  const instance = createMigrationStateService({ sourceInspector: () => source, checksum: async () => "cloud-hash",
+    cloudRepository, cloudPayload: shows => ({ schemaVersion: 2, shows }), diffBuilder: () => [],
+    markerStore: { async read() { markerReads += 1; return true; } }, storage: {}, baseline: [] });
+  const first = await instance.applyAuthState({ status: "authenticated", accountId: "owner" });
+  const second = await instance.applyAuthState({ status: "authenticated", accountId: "owner" });
+  assert.equal(first.status, STATES.COMPLETED); assert.equal(second.status, STATES.COMPLETED);
+  assert.equal(first.cloudShows[0].id, "fresh-1"); assert.equal(second.cloudShows[0].id, "fresh-2");
+  assert.equal(markerReads, 0); assert.equal(trackerReads, 2);
+});
+
+test("account switch invalidates a slower prior inspection", async () => {
+  let releaseFirst;
+  const gate = new Promise(resolve => { releaseFirst = resolve; });
+  let receiptReads = 0;
+  const cloudRepository = { async readMigrationReceipt() { receiptReads += 1; if (receiptReads === 1) await gate; return { ok: true, data: { receipt: null } }; },
+    async readTracker() { return { ok: true, data: { shows: [], totals: { shows: 0, seasons: 0 } } }; } };
+  const instance = createMigrationStateService({ sourceInspector: () => source, checksum: async () => "hash",
+    cloudRepository, cloudPayload: shows => ({ schemaVersion: 2, shows }), diffBuilder: () => [], storage: {}, baseline: [] });
+  const first = instance.applyAuthState({ status: "authenticated", accountId: "owner-a" });
+  const second = instance.applyAuthState({ status: "authenticated", accountId: "owner-b" });
+  releaseFirst(); await Promise.all([first, second]);
+  assert.equal(instance.getState().accountId, "owner-b");
+});
