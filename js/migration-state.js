@@ -6,7 +6,7 @@
 })(typeof globalThis === "object" ? globalThis : this, function createModule() {
   "use strict";
 
-  const STATES = Object.freeze({ IDLE: "idle", LOADING: "loading", COMPLETED: "completed_migration",
+  const STATES = Object.freeze({ IDLE: "idle", LOADING: "loading", COMPLETED: "completed_migration", KEEP_DISMISSED: "keep_dismissed",
     REVIEW_REQUIRED: "review_required", SOURCE_ERROR: "source_error", CLOUD_ERROR: "cloud_error" });
   const CHOICES = Object.freeze(["keep_cloud", "replace_cloud", "reviewed_merge"]);
 
@@ -18,7 +18,7 @@
       choices: options.choices || Object.freeze([]), error: options.error || null });
   }
 
-  function createMigrationStateService({ sourceInspector, checksum, cloudRepository, cloudPayload, diffBuilder, storage, baseline, onStateChange = () => {} }) {
+  function createMigrationStateService({ sourceInspector, checksum, cloudRepository, cloudPayload, diffBuilder, markerStore = null, storage, baseline, onStateChange = () => {} }) {
     if (![sourceInspector, checksum, cloudPayload, diffBuilder].every((value) => typeof value === "function") || !cloudRepository) throw new TypeError("Migration state dependencies are required");
     let current = state(STATES.IDLE);
     let generation = 0;
@@ -73,6 +73,12 @@
         return publish(state(STATES.SOURCE_ERROR, { ...common, error: { code: "source_processing_failed" } }));
       }
       if (requestGeneration !== generation) return current;
+      let dismissed = false;
+      try { dismissed = Boolean(markerStore && await markerStore.read(accountId, sourceChecksum)); } catch { dismissed = false; }
+      if (dismissed) {
+        if (requestGeneration !== generation) return current;
+        return publish(state(STATES.KEEP_DISMISSED, { ...common, sourceChecksum }));
+      }
       return publish(state(STATES.REVIEW_REQUIRED, { ...common, sourceChecksum, reviewItems, choices: CHOICES }));
     }
 

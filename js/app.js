@@ -10,11 +10,13 @@
   let shows = [];
   let visibleLimit = PAGE_SIZE;
   let pendingTmdbMatch = null;
+  let authority = "local";
   const localRepository = window.TV_TRACKER_REPOSITORIES.createLocalTrackerRepository({storage:localStorage});
 
   const $ = (id) => document.getElementById(id);
   const els = {
     addShowBtn: $("addShowBtn"), exportBtn: $("exportBtn"), importFile: $("importFile"), resetBtn: $("resetBtn"),
+    localNote: document.querySelector(".local-note"),
     searchInput: $("searchInput"), platformFilter: $("platformFilter"), statusFilter: $("statusFilter"), sortSelect: $("sortSelect"),
     cardsViewBtn: $("cardsViewBtn"), compactViewBtn: $("compactViewBtn"), clearFiltersBtn: $("clearFiltersBtn"),
     cardsContainer: $("cardsContainer"), emptyState: $("emptyState"), resultCount: $("resultCount"),
@@ -39,6 +41,7 @@
 
   function deepCopy(value){ return JSON.parse(JSON.stringify(value)); }
   function save(){
+    if(authority !== "local") throw new Error("Cloud tracker is read-only until cloud editing is added.");
     const result = localRepository.writeTracker(shows);
     if(!result.ok) throw new Error("Unable to save tracker data on this device.");
   }
@@ -52,6 +55,30 @@
     refreshPlatformOptions();
     applySavedView();
     render();
+  }
+
+  function setMutationControlsDisabled(disabled){
+    [els.addShowBtn,els.importFile,els.resetBtn,els.detailEditBtn].forEach(element=>{ if(element) element.disabled=disabled; });
+    document.body.dataset.trackerAuthority = disabled ? "cloud_read_only" : "local";
+    if(els.localNote) els.localNote.textContent = disabled
+      ? "Verified cloud data is active in read-only mode. Cloud editing arrives in Phase 2.6."
+      : "Your tracker stays on this device until you sign in and choose how to migrate it.";
+  }
+
+  function setCloudReadOnly(cloudShows){
+    if(!Array.isArray(cloudShows)) throw new TypeError("Verified cloud tracker is required.");
+    authority = "cloud_read_only";
+    shows = deepCopy(cloudShows);
+    visibleLimit = PAGE_SIZE;
+    refreshPlatformOptions(); clearFilters(); setMutationControlsDisabled(true); render();
+  }
+
+  function returnToLocal(){
+    authority = "local";
+    const result = localRepository.readTracker({baseline:baselineShows});
+    shows = deepCopy(result.data.shows);
+    visibleLimit = PAGE_SIZE;
+    refreshPlatformOptions(); clearFilters(); setMutationControlsDisabled(false); render();
   }
 
   function slug(value){ return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""); }
@@ -203,7 +230,10 @@
         <button class="text-btn edit-show" type="button">Edit →</button>
       </div>`;
     body.querySelector(".view-show").addEventListener("click",()=>openDetail(show));
-    body.querySelector(".edit-show").addEventListener("click",()=>openEditor(show));
+    const editButton = body.querySelector(".edit-show");
+    editButton.disabled = authority !== "local";
+    editButton.classList.toggle("hidden", authority !== "local");
+    editButton.addEventListener("click",()=>openEditor(show));
     body.querySelector(".card-title").classList.add("clickable-title");
     body.querySelector(".card-title").addEventListener("click",()=>openDetail(show));
     article.append(poster,body);
@@ -408,6 +438,15 @@
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
 
+  function exportLocalBackup(){
+    const result = localRepository.readTracker({baseline:baselineShows});
+    const payload = {schemaVersion:1, exportedAt:new Date().toISOString(), shows:result.data.shows};
+    const blob = new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    const url = URL.createObjectURL(blob); const a = document.createElement("a");
+    a.href=url; a.download=`tv-series-tracker-local-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+
   async function importJson(file){
     if(!file) return;
     try{
@@ -492,4 +531,5 @@
     console.error(err);
     els.cardsContainer.innerHTML = `<div class="empty-state"><h2>Unable to load catalogue</h2><p>${escapeHtml(err.message)}</p></div>`;
   }
+  window.TV_TRACKER_APP = Object.freeze({exportLocalBackup,getAuthority:()=>authority,returnToLocal,setCloudReadOnly});
 })();

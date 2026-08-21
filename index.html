@@ -64,6 +64,10 @@
           <p>Unselected device data is ignored. Unselected cloud data remains unchanged.</p>
           <div id="migrationDifferenceList"></div>
           <p class="migration-decision-summary" id="migrationDecisionSummary"></p>
+          <div class="migration-execution-actions">
+            <button class="btn" id="migrationBackupBtn" type="button">Download local backup</button>
+            <button class="btn primary" id="migrationExecuteBtn" type="button" disabled>Confirm and continue</button>
+          </div>
         </div>
       </section>
       <section class="stats-grid" aria-label="Library summary">
@@ -284,9 +288,11 @@
   <script src="js/tracker-checksum.js"></script>
   <script src="js/migration-source.js"></script>
   <script src="js/migration-review.js"></script>
+  <script src="js/migration-marker.js"></script>
   <script src="js/migration-state.js"></script>
+  <script src="js/migration-execution.js"></script>
   <script src="js/auth-ui.js"></script>
-  <script src="js/migration-review-ui.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/migration-review-ui.js"></script>
 </body>
 </html>

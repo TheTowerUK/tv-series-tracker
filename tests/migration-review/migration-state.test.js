@@ -68,7 +68,21 @@ test("sign-out and account change invalidate prior review state", async () => {
   assert.equal(instance.getState().accountId, "owner-b");
 });
 
-test("state and UI source contain no migration RPC or write path", () => {
-  const files = ["../../js/migration-state.js", "../../js/migration-review-ui.js"].map((file) => fs.readFileSync(path.resolve(__dirname, file), "utf8")).join("\n");
-  assert.doesNotMatch(files, /tracker_migrate_v1|\.rpc\s*\(|\.from\s*\([^)]*\)\s*\.\s*(?:insert|update|upsert|delete)\s*\(/s);
+test("migration UI delegates its sole cloud mutation to the execution service", () => {
+  const stateFile = fs.readFileSync(path.resolve(__dirname, "../../js/migration-state.js"), "utf8");
+  const uiFile = fs.readFileSync(path.resolve(__dirname, "../../js/migration-review-ui.js"), "utf8");
+  assert.doesNotMatch(stateFile, /tracker_migrate_v1|\.rpc\s*\(/);
+  assert.doesNotMatch(uiFile, /\.rpc\s*\(|\.from\s*\([^)]*\)\s*\.\s*(?:insert|update|upsert|delete)\s*\(/s);
+});
+
+test("matching keep-cloud marker suppresses repeat review and source change invalidates it", async () => {
+  let accepted = true;
+  const markerStore = { async read() { return accepted; } };
+  const instance = createMigrationStateService({ sourceInspector: () => source,
+    checksum: async payload => payload === source.normalizedPayload ? "source-hash" : "cloud-hash",
+    cloudRepository: repository(), cloudPayload: shows => ({ schemaVersion: 2, shows }),
+    diffBuilder: () => [], markerStore, storage: {}, baseline: [] });
+  assert.equal((await instance.applyAuthState({ status: "authenticated", accountId: "owner" })).status, STATES.KEEP_DISMISSED);
+  accepted = false;
+  assert.equal((await instance.inspect("owner")).status, STATES.REVIEW_REQUIRED);
 });
