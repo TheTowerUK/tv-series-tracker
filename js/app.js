@@ -15,7 +15,7 @@
 
   const $ = (id) => document.getElementById(id);
   const els = {
-    addShowBtn: $("addShowBtn"), exportBtn: $("exportBtn"), importFile: $("importFile"), resetBtn: $("resetBtn"),
+    addShowBtn: $("addShowBtn"), exportBtn: $("exportBtn"), cloudExportBtn: $("cloudExportBtn"), importFile: $("importFile"), resetBtn: $("resetBtn"),
     localNote: document.querySelector(".local-note"),
     searchInput: $("searchInput"), platformFilter: $("platformFilter"), statusFilter: $("statusFilter"), sortSelect: $("sortSelect"),
     cardsViewBtn: $("cardsViewBtn"), compactViewBtn: $("compactViewBtn"), clearFiltersBtn: $("clearFiltersBtn"),
@@ -79,6 +79,8 @@
     const ready = !disabled;
     [els.addShowBtn,els.detailEditBtn].forEach(element=>{ if(element) element.disabled=!ready; });
     [els.importFile,els.resetBtn].forEach(element=>{ if(element) element.disabled=cloudAuthority(); });
+    els.cloudExportBtn?.classList.toggle("hidden",!cloudAuthority());
+    if(els.cloudExportBtn) els.cloudExportBtn.disabled=!["cloud_ready","cloud_conflict"].includes(authority);
     document.querySelectorAll(".cloud-season-control").forEach(element=>{ element.disabled=authority!=="cloud_ready"; });
     document.body.dataset.trackerAuthority = authority;
     if(els.localNote) els.localNote.textContent = authority === "local"
@@ -544,22 +546,28 @@
     }
   }
 
-  function exportJson(){
-    const payload = {schemaVersion:1, exportedAt:new Date().toISOString(), shows};
+  function downloadJson(payload,filename){
     const blob = new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href=url; a.download=`tv-series-tracker-${new Date().toISOString().slice(0,10)}.json`;
+    a.href=url; a.download=filename;
     document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
 
   function exportLocalBackup(){
     const result = localRepository.readTracker({baseline:baselineShows});
     const payload = {schemaVersion:1, exportedAt:new Date().toISOString(), shows:result.data.shows};
-    const blob = new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
-    const url = URL.createObjectURL(blob); const a = document.createElement("a");
-    a.href=url; a.download=`tv-series-tracker-local-backup-${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    downloadJson(payload,`tv-series-tracker-local-backup-${new Date().toISOString().slice(0,10)}.json`);
+  }
+
+  async function exportCloudTracker(){
+    if(!["cloud_ready","cloud_conflict"].includes(authority)) return;
+    try{
+      const prepared=await window.TV_TRACKER_CLOUD_EXPORT.prepareCloudExport(deepCopy(shows));
+      downloadJson(prepared.payload,window.TV_TRACKER_CLOUD_EXPORT.safeFilename(prepared.payload.exportedAt));
+    }catch{
+      showCloudFailure();
+    }
   }
 
   async function importJson(file){
@@ -617,7 +625,8 @@
   els.closeTmdbBtn?.addEventListener("click",()=>els.tmdbDialog.close());
   els.showForm.addEventListener("submit",e=>{e.preventDefault();saveEditor();});
   els.deleteShowBtn.addEventListener("click",deleteCurrent);
-  els.exportBtn.addEventListener("click",exportJson);
+  els.exportBtn.addEventListener("click",exportLocalBackup);
+  els.cloudExportBtn?.addEventListener("click",exportCloudTracker);
   els.importFile.addEventListener("change",e=>importJson(e.target.files[0]));
   els.resetBtn.addEventListener("click",resetBaseline);
   els.clearFiltersBtn.addEventListener("click",clearFilters);

@@ -18,7 +18,8 @@
       <div class="topbar-tools">
         <div class="top-actions">
           <button class="btn primary" id="addShowBtn">＋ Add Show</button>
-          <button class="btn" id="exportBtn">Export JSON</button>
+          <button class="btn" id="exportBtn">Download local backup</button>
+          <button class="btn hidden" id="cloudExportBtn">Export cloud tracker</button>
           <label class="btn file-btn">Import JSON<input id="importFile" type="file" accept="application/json,.json"></label>
           <button class="btn danger-ghost" id="resetBtn" title="Restore the baseline catalogue">Reset baseline</button>
         </div>
@@ -326,6 +327,7 @@
   <script src="js/show-conflict-review.js"></script>
   <script src="js/season-conflict-review.js"></script>
   <script src="js/tracker-checksum.js"></script>
+  <script src="js/cloud-tracker-export.js"></script>
   <script src="js/migration-source.js"></script>
   <script src="js/migration-review.js"></script>
   <script src="js/migration-marker.js"></script>
