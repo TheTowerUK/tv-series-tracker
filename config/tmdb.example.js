@@ -1,1 +1,0 @@
-window.TMDB_CONFIG = { token: "YOUR_TMDB_API_READ_ACCESS_TOKEN" };

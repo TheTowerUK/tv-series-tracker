@@ -1,6 +1,4 @@
 
-config/tmdb.local.js
-
 # Repository-local Node development tooling
 node_modules/
 

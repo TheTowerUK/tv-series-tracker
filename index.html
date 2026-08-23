@@ -231,7 +231,7 @@
         </label>
         <div class="span-2 tmdb-toolbar">
           <button type="button" class="btn" id="findArtworkBtn">Find artwork with TMDB</button>
-          <span id="tmdbStatus" class="muted">Local test only — no API token is stored in Git.</span>
+          <span id="tmdbStatus" class="muted">Sign in to search TMDB, or enter a poster URL manually.</span>
         </div>
         <div class="span-2 poster-preview-row">
           <div id="posterPreview" class="poster-preview"><span>Preview</span></div>
@@ -314,11 +314,11 @@
   </template>
 
   <script src="data/shows.js"></script>
-  <script src="config/tmdb.local.js"></script>
   <script src="vendor/supabase-js/2.112.3/supabase.js"></script>
   <script src="config/supabase.local.js"></script>
   <script src="js/supabase-bootstrap.js"></script>
   <script src="js/auth-session.js"></script>
+  <script src="js/tmdb-search-service.js"></script>
   <script src="js/tracker-row-adapter.js"></script>
   <script src="js/tracker-repository.js"></script>
   <script src="js/cloud-tracker-repository.js"></script>

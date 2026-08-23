@@ -1,10 +1,16 @@
 # TMDB Edge Function Development Contract
 
-**Status:** Phase 2.7 Step 1 local implementation
+**Status:** Phase 2.7 Step 2 browser integration
 
 **Last updated:** 2026-08-23
 
-The authenticated `tmdb-search-tv` Edge Function is the future browser boundary for TMDB television search. Step 1 implements and validates the local function only. The existing browser token and direct TMDB call remain unchanged until Step 2.
+The authenticated `tmdb-search-tv` Edge Function is the browser boundary for TMDB television search. The browser invokes it through the existing singleton Supabase client; no committed browser code reads a TMDB credential or calls the TMDB API directly.
+
+## Browser boundary
+
+`js/tmdb-search-service.js` is DOM-free and uses the singleton Supabase client to invoke `tmdb-search-tv` with exactly `contractVersion`, `query`, and `firstAirDate`. It requires an authenticated persisted session, returns only validated candidates to the editor, bounds candidates to eight, and maps function/gateway failures to safe browser outcomes without automatic retry.
+
+The retired `config/tmdb.local.js` and `config/tmdb.example.js` browser-token path must not be recreated. Signed-out users retain the complete local tracker, manual poster URL entry, and image fallback, but TMDB search explains that sign-in is required. Candidate selection still preserves independent `posterUrl` and nested TMDB identity metadata through the existing local or cloud show-save path.
 
 ## Local secret configuration
 
@@ -51,7 +57,7 @@ Run pure mocked-upstream tests with:
 npm run test:tmdb
 ```
 
-The opt-in integration test expects a running local function plus local-only environment values `TV_TRACKER_TEST_FUNCTION_URL`, `TV_TRACKER_TEST_PUBLISHABLE_KEY`, and, for authenticated validation, `TV_TRACKER_TEST_ACCESS_TOKEN`. It proves anonymous gateway denial and authenticated access to the function's strict validation boundary without calling TMDB.
+The opt-in integration test expects a running local function plus local-only environment values. Its live mode creates and removes a disposable local Auth identity, invokes the function through the browser service, and verifies the normalized candidate contract. Local test administration uses the local development secret only to create and clean up that synthetic identity; neither the browser service nor the Edge Function receives it.
 
 ## Related documents
 

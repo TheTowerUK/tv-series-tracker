@@ -12,6 +12,7 @@
   let pendingTmdbMatch = null;
   let authority = "local";
   const localRepository = window.TV_TRACKER_REPOSITORIES.createLocalTrackerRepository({storage:localStorage});
+  const tmdbSearchService = window.TV_TRACKER_TMDB_SEARCH.createTmdbSearchService({bootstrap:window.TV_TRACKER_SUPABASE});
 
   const $ = (id) => document.getElementById(id);
   const els = {
@@ -355,20 +356,16 @@
     if(!result.ok&&result.outcome!=="conflict"&&authority==="cloud_ready") showCloudFailure();
   }
 
-  function tmdbToken(){
-    return String(window.TMDB_CONFIG?.token || "").trim();
-  }
-
   function tmdbImageUrl(path, size="w500"){
     return path ? `https://image.tmdb.org/t/p/${size}${path}` : "";
   }
 
   async function searchTmdbArtwork(){
-    const token = tmdbToken();
     const title = els.titleInput.value.trim();
-    const year = (els.dateInput.value || "").slice(0,4);
-    if(!token){
-      alert("TMDB local token not found. Check config/tmdb.local.js.");
+    const firstAirDate = els.dateInput.value || null;
+    const authState = window.TV_TRACKER_AUTH?.getState();
+    if(authState?.status !== "authenticated"){
+      els.tmdbStatus.textContent = "Sign in to search TMDB. Manual poster URLs remain available.";
       return;
     }
     if(!title){
@@ -378,29 +375,23 @@
     els.findArtworkBtn.disabled = true;
     els.tmdbStatus.textContent = "Searching TMDB…";
     try{
-      const params = new URLSearchParams({query:title, include_adult:"false", language:"en-GB", page:"1"});
-      if(year) params.set("first_air_date_year", year);
-      let response = await fetch(`https://api.themoviedb.org/3/search/tv?${params}`, {
-        headers:{Authorization:`Bearer ${token}`, accept:"application/json"}
-      });
-      if(!response.ok) throw new Error(`TMDB returned ${response.status}`);
-      let data = await response.json();
-      // If an exact-year search finds nothing, retry title-only rather than presenting no useful candidates.
-      if(year && (!Array.isArray(data.results) || data.results.length === 0)){
-        params.delete("first_air_date_year");
-        response = await fetch(`https://api.themoviedb.org/3/search/tv?${params}`, {
-          headers:{Authorization:`Bearer ${token}`, accept:"application/json"}
-        });
-        if(!response.ok) throw new Error(`TMDB returned ${response.status}`);
-        data = await response.json();
+      const result = await tmdbSearchService.search(title, firstAirDate);
+      if(!result.ok){
+        const messages = {
+          invalid_request:"Check the title and first-air date before searching.", unauthenticated:"Sign in to search TMDB.",
+          rate_limited:`TMDB search is temporarily limited.${result.retryAfterSeconds ? ` Try again in about ${result.retryAfterSeconds} seconds.` : " Try again later."}`,
+          network_unavailable:"TMDB search is unavailable while the network cannot be reached.", upstream_unavailable:"TMDB search is temporarily unavailable.",
+          configuration_unavailable:"TMDB search is not configured.", search_failed:"TMDB search could not be completed."
+        };
+        els.tmdbStatus.textContent = messages[result.outcome] || messages.search_failed;
+        return;
       }
-      renderTmdbCandidates((data.results || []).slice(0,8), title, year);
-      els.tmdbStatus.textContent = `${Math.min((data.results || []).length,8)} candidate${(data.results || []).length===1?"":"s"} returned`;
+      const year = firstAirDate ? firstAirDate.slice(0,4) : "";
+      renderTmdbCandidates(result.candidates, title, year);
+      els.tmdbStatus.textContent = `${result.candidates.length} candidate${result.candidates.length===1?"":"s"} returned`;
       els.tmdbDialog.showModal();
-    }catch(error){
-      console.error(error);
-      els.tmdbStatus.textContent = "TMDB search failed";
-      alert(`TMDB search failed: ${error.message}`);
+    }catch{
+      els.tmdbStatus.textContent = "TMDB search could not be completed.";
     }finally{
       els.findArtworkBtn.disabled = false;
     }
@@ -417,8 +408,8 @@
       const candidate = document.createElement("button");
       candidate.type = "button";
       candidate.className = "tmdb-candidate";
-      const poster = tmdbImageUrl(result.poster_path, "w185");
-      const airYear = String(result.first_air_date || "").slice(0,4) || "Year unknown";
+      const poster = tmdbImageUrl(result.posterPath, "w185");
+      const airYear = String(result.firstAirDate || "").slice(0,4) || "Year unknown";
       candidate.innerHTML = `
         <div class="tmdb-thumb">${poster ? `<img src="${escapeAttr(poster)}" alt="">` : `<span>${escapeHtml(initials(result.name))}</span>`}</div>
         <div class="tmdb-candidate-copy">
@@ -431,12 +422,12 @@
         pendingTmdbMatch = {
           id: result.id,
           name: result.name || "",
-          firstAirDate: result.first_air_date || "",
-          posterPath: result.poster_path || ""
+          firstAirDate: result.firstAirDate || "",
+          posterPath: result.posterPath || ""
         };
-        els.posterInput.value = tmdbImageUrl(result.poster_path, "w500");
+        els.posterInput.value = tmdbImageUrl(result.posterPath, "w500");
         refreshPosterPreview();
-        els.tmdbStatus.textContent = `Selected TMDB #${result.id}${result.poster_path ? " · artwork ready" : " · no poster available"}`;
+        els.tmdbStatus.textContent = `Selected TMDB #${result.id}${result.posterPath ? " · artwork ready" : " · no poster available"}`;
         els.tmdbDialog.close();
       });
       els.tmdbResults.appendChild(candidate);
@@ -453,7 +444,9 @@
     els.showForm.reset();
     els.seasonEditor.innerHTML = "";
     pendingTmdbMatch = null;
-    if(els.tmdbStatus) els.tmdbStatus.textContent = tmdbToken() ? "TMDB local token detected." : "Local test only — no API token is stored in Git.";
+    if(els.tmdbStatus) els.tmdbStatus.textContent = window.TV_TRACKER_AUTH?.getState().status === "authenticated"
+      ? "Search TMDB for artwork, or enter a poster URL manually."
+      : "Sign in to search TMDB, or enter a poster URL manually.";
     if(show){
       const values = draft || show;
       els.dialogTitle.textContent = "Edit Show";
