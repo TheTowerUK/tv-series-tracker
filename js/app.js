@@ -515,7 +515,7 @@
     const record = editorRecord();
     if(authority === "cloud_ready"){
       const current = shows.find(show=>show.id===els.showId.value);
-      if(current && !window.TV_TRACKER_CLOUD_MUTATIONS.buildShowPatch(current,record)){ els.showDialog.close(); return; }
+      if(current && !window.TV_TRACKER_CLOUD_MUTATION_REPOSITORY.buildShowPatch(current,record)){ els.showDialog.close(); return; }
       const operation = current ? "updateShow" : "createShow";
       const args = current ? [current,record] : [record];
       const result = await cloudController.mutate({...cloudContext,operation,args,submitted:{draft:record}});

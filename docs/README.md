@@ -2,7 +2,7 @@
 
 ## Purpose and status
 
-This directory contains the versioned architecture, security, migration, delivery, and validation documentation for TV Series Tracker v2.0. Phase 2.1 through Phase 2.5 are approved baselines. Phase 2.5 establishes Auth, real-user migration, recovery, and verified read-only cloud cutover. No Phase 2.6 cloud-write integration, production migration, or hosted deployment is implied.
+This directory contains the versioned architecture, security, migration, delivery, and validation documentation for TV Series Tracker v2.0. Phase 2.1 through Phase 2.6 are approved baselines. Phase 2.6 establishes confirmed-refresh writable-cloud integration, explicit conflict review, stale-read-only recovery, LocalStorage/cloud isolation, and canonical cloud export. No production migration, hosted deployment, or Phase 2.7 work is implied.
 
 TTSPlayer is a separate project. Its files, secrets, infrastructure, and decisions are completely out of scope.
 
@@ -47,6 +47,7 @@ Version-controlled database migrations will implement the contract after approva
 - [Phase 2.3 validation and closure checklist](roadmap/v2.0-phase-2.3-validation.md)
 - [Phase 2.4 validation and closure checklist](roadmap/v2.0-phase-2.4-validation.md)
 - [Phase 2.5 validation and closure checklist](roadmap/v2.0-phase-2.5-validation.md)
+- [Phase 2.6 validation and closure checklist](roadmap/v2.0-phase-2.6-validation.md)
 
 Later phases should add dated validation/evidence records beside the relevant roadmap material rather than rewriting historical results.
 
