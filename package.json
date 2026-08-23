@@ -15,7 +15,8 @@
     "test:cloud-mutations": "node --test tests/cloud-mutations/*.test.js",
     "test:migration-source": "node --test tests/migration-source/*.test.js",
     "test:migration-review": "node --test tests/migration-review/*.test.js",
-    "test:migration-execution": "node --test tests/migration-execution/*.test.js"
+    "test:migration-execution": "node --test tests/migration-execution/*.test.js",
+    "test:tmdb": "node --test tests/tmdb/*.test.mjs"
   },
   "devDependencies": {
     "supabase": "2.114.0"

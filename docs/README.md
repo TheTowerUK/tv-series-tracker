@@ -37,6 +37,7 @@ Version-controlled database migrations will implement the contract after approva
 ## Development environments
 
 - [Supabase environment and configuration contract](development/supabase-environments.md)
+- [TMDB Edge Function development contract](development/tmdb-edge-function.md)
 - [Browser-safe Supabase configuration example](../config/supabase.example.js)
 
 ## Roadmap and validation
