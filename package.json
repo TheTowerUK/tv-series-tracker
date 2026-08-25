@@ -4,6 +4,8 @@
   "private": true,
   "description": "Repository-local development tooling for TVSeriesTracker.",
   "scripts": {
+    "test": "node scripts/run-node-tests.mjs",
+    "build:pages": "node scripts/build-pages-artifact.mjs",
     "supabase": "supabase",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
