@@ -317,7 +317,12 @@
       </div>
       <div id="artworkDiscoveryResults" class="artwork-discovery-results"></div>
       <p id="artworkSelectedSummary" class="artwork-selection-summary">No tracker data has changed.</p>
-      <footer class="dialog-actions"><button class="btn primary" id="closeArtworkReviewBtn" type="button">Close review</button></footer>
+      <footer class="dialog-actions">
+        <button class="btn hidden" id="cancelArtworkApplicationBtn" type="button">Stop after current update</button>
+        <button class="btn hidden" id="resumeArtworkApplicationBtn" type="button">Resume remaining</button>
+        <button class="btn" id="closeArtworkReviewBtn" type="button">Close review</button>
+        <button class="btn primary" id="applySelectedArtworkBtn" type="button" disabled>Apply selected artwork</button>
+      </footer>
     </article>
   </dialog>
 
@@ -343,6 +348,7 @@
   <script src="js/tmdb-search-service.js"></script>
   <script src="js/tmdb-candidate-view.js"></script>
   <script src="js/artwork-enrichment.js"></script>
+  <script src="js/artwork-enrichment-application.js"></script>
   <script src="js/artwork-enrichment-ui.js"></script>
   <script src="js/tracker-row-adapter.js"></script>
   <script src="js/tracker-repository.js"></script>

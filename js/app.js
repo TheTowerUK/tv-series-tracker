@@ -46,6 +46,7 @@
   let conflictReview = null;
   let seasonConflictReview = null;
   let artworkReview = null;
+  let artworkApplication = null;
 
   function deepCopy(value){ return JSON.parse(JSON.stringify(value)); }
   function save(){
@@ -664,8 +665,20 @@
   try{
     load();
     const artworkDiscovery = window.TV_TRACKER_ARTWORK_ENRICHMENT.createArtworkDiscovery({tmdbSearchService});
+    artworkApplication = window.TV_TRACKER_ARTWORK_APPLICATION.createArtworkApplication({
+      getAuthority:()=>authority,
+      readDevice:()=>localRepository.readTracker({baseline:baselineShows}),
+      writeDevice:nextShows=>{
+        const result=localRepository.writeTracker(nextShows);
+        if(result.ok){ shows=deepCopy(nextShows); refreshPlatformOptions(); render(); }
+        return result;
+      },
+      getCloudState:()=>cloudController?.getState() || null,
+      updateCloudShow:(current,draft)=>cloudController.mutate({...cloudContext,operation:"updateShow",args:[current,draft],submitted:{draft}}),
+      onProgress:progress=>artworkReview?.handleApplicationProgress(progress)
+    });
     artworkReview = window.TV_TRACKER_ARTWORK_ENRICHMENT_UI.createArtworkEnrichmentReview({
-      document, discovery:artworkDiscovery, artworkEngine:window.TV_TRACKER_ARTWORK_ENRICHMENT,
+      document, discovery:artworkDiscovery, application:artworkApplication, artworkEngine:window.TV_TRACKER_ARTWORK_ENRICHMENT,
       auth:window.TV_TRACKER_AUTH || null, getShows:()=>deepCopy(shows), getAuthority:()=>authority,
       candidateView:window.TV_TRACKER_TMDB_CANDIDATE_VIEW
     });

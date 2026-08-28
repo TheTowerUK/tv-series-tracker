@@ -4,7 +4,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const { countsFor, proposal, safeErrorMessage, selectedProposals } = require("../../js/artwork-enrichment-ui.js");
+const { applicationStopMessage, countsFor, proposal, safeErrorMessage, selectedProposals } = require("../../js/artwork-enrichment-ui.js");
 
 const root = path.resolve(__dirname, "../..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -43,6 +43,12 @@ test("summary counts retain service failures as errors", () => {
   assert.doesNotMatch(safeErrorMessage({ outcome: "rate_limited", diagnostics: "secret" }), /secret|diagnostic/i);
 });
 
+test("application stop messages are safe user language", () => {
+  assert.match(applicationStopMessage("conflict"), /changed.*review/i);
+  assert.match(applicationStopMessage("cloud_stale_readonly"), /could not be confirmed safely/i);
+  assert.doesNotMatch(applicationStopMessage("unexpected_internal_value"), /unexpected_internal_value|sql|rpc/i);
+});
+
 test("review UI is authenticated, user-started, cancellable and explicitly resumable", () => {
   const html = read("index.html");
   const source = read("js/artwork-enrichment-ui.js");
@@ -58,11 +64,14 @@ test("review UI is authenticated, user-started, cancellable and explicitly resum
   assert.match(source, /Errors/);
 });
 
-test("review and discovery contain no persistence, RPC or apply path", () => {
-  const source = `${read("js/artwork-enrichment.js")}\n${read("js/artwork-enrichment-ui.js")}`;
-  assert.doesNotMatch(source, /localStorage|sessionStorage|writeTracker|\.rpc\s*\(|mutationRepository|cloudController|tracker_(?:create|update|delete|upsert)/);
+test("discovery remains write-free and application requires an explicit enabled action", () => {
+  const discovery = read("js/artwork-enrichment.js");
+  const review = read("js/artwork-enrichment-ui.js");
+  assert.doesNotMatch(discovery, /localStorage|sessionStorage|writeTracker|\.rpc\s*\(|mutationRepository|cloudController|tracker_(?:create|update|delete|upsert)/);
   const html = read("index.html");
-  assert.doesNotMatch(html, /id="applyArtwork|id="saveArtwork/i);
+  assert.match(html, /id="applySelectedArtworkBtn"[^>]*disabled/);
+  assert.match(review, /apply\.addEventListener\("click"/);
+  assert.doesNotMatch(review, /discover[\s\S]{0,100}application\.apply/);
 });
 
 test("shared candidate view serves editor and review without sharing editor state", () => {
@@ -71,4 +80,14 @@ test("shared candidate view serves editor and review without sharing editor stat
   assert.match(app, /TV_TRACKER_TMDB_CANDIDATE_VIEW\.candidateElement/);
   assert.match(review, /candidateView\.candidateElement/);
   assert.doesNotMatch(review, /pendingTmdbMatch/);
+});
+
+test("application wiring reuses local repository and cloud sync without direct backend access", () => {
+  const app = read("js/app.js");
+  const application = read("js/artwork-enrichment-application.js");
+  assert.match(app, /localRepository\.readTracker/);
+  assert.match(app, /localRepository\.writeTracker/);
+  assert.match(app, /cloudController\.mutate\(\{\.\.\.cloudContext,operation:"updateShow"/);
+  assert.doesNotMatch(application, /\.rpc\s*\(|tracker_update_show|supabase|localStorage|sessionStorage/);
+  assert.doesNotMatch(application, /Promise\.all|revision\s*[:=]\s*Number/);
 });
