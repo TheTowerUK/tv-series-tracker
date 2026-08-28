@@ -18,6 +18,7 @@
       <div class="topbar-tools">
         <div class="top-actions">
           <button class="btn primary" id="addShowBtn">＋ Add Show</button>
+          <button class="btn hidden" id="findMissingArtworkBtn" type="button">Find missing artwork</button>
           <button class="btn" id="exportBtn" aria-describedby="backupHelp">Download local backup</button>
           <button class="btn hidden" id="cloudExportBtn" aria-describedby="backupHelp">Export cloud tracker</button>
           <label class="btn file-btn">Import JSON<input id="importFile" type="file" accept="application/json,.json"></label>
@@ -301,6 +302,25 @@
     </article>
   </dialog>
 
+  <dialog id="artworkEnrichmentDialog" class="artwork-enrichment-dialog">
+    <article class="dialog-card">
+      <header class="dialog-header">
+        <div><p class="eyebrow">ARTWORK DISCOVERY</p><h2>Find missing artwork</h2><p id="artworkAuthorityLabel" class="muted"></p></div>
+        <button class="icon-btn" id="closeArtworkEnrichmentBtn" type="button" aria-label="Close">×</button>
+      </header>
+      <p id="artworkDiscoveryStatus" aria-live="polite">Review missing artwork without changing your tracker.</p>
+      <progress id="artworkDiscoveryProgressBar" class="artwork-discovery-progress" max="1" value="0"></progress>
+      <div class="artwork-progress-copy"><strong id="artworkDiscoveryProgress">Processed 0 of 0</strong><span id="artworkDiscoveryCounts" class="muted"></span></div>
+      <div class="artwork-discovery-actions">
+        <button class="btn" id="cancelArtworkDiscoveryBtn" type="button">Cancel discovery</button>
+        <button class="btn hidden" id="resumeArtworkDiscoveryBtn" type="button">Resume remaining shows</button>
+      </div>
+      <div id="artworkDiscoveryResults" class="artwork-discovery-results"></div>
+      <p id="artworkSelectedSummary" class="artwork-selection-summary">No tracker data has changed.</p>
+      <footer class="dialog-actions"><button class="btn primary" id="closeArtworkReviewBtn" type="button">Close review</button></footer>
+    </article>
+  </dialog>
+
   <template id="seasonRowTemplate">
     <div class="season-edit-row">
       <span class="season-number"></span>
@@ -321,7 +341,9 @@
   <script src="js/supabase-bootstrap.js"></script>
   <script src="js/auth-session.js"></script>
   <script src="js/tmdb-search-service.js"></script>
+  <script src="js/tmdb-candidate-view.js"></script>
   <script src="js/artwork-enrichment.js"></script>
+  <script src="js/artwork-enrichment-ui.js"></script>
   <script src="js/tracker-row-adapter.js"></script>
   <script src="js/tracker-repository.js"></script>
   <script src="js/cloud-tracker-repository.js"></script>

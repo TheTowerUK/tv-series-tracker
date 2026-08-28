@@ -45,6 +45,7 @@
   let cloudContext = null;
   let conflictReview = null;
   let seasonConflictReview = null;
+  let artworkReview = null;
 
   function deepCopy(value){ return JSON.parse(JSON.stringify(value)); }
   function save(){
@@ -250,6 +251,7 @@
     visible.forEach(show => els.cardsContainer.appendChild(createCard(show)));
     els.loadMoreWrap.classList.toggle("hidden", visible.length >= list.length);
     if(visible.length < list.length) els.loadMoreBtn.textContent = `Load more (${list.length - visible.length} remaining)`;
+    artworkReview?.refreshAvailability();
   }
 
   function createCard(show){
@@ -406,20 +408,7 @@
       return;
     }
     results.forEach(result => {
-      const candidate = document.createElement("button");
-      candidate.type = "button";
-      candidate.className = "tmdb-candidate";
-      const poster = tmdbImageUrl(result.posterPath, "w185");
-      const airYear = String(result.firstAirDate || "").slice(0,4) || "Year unknown";
-      candidate.innerHTML = `
-        <div class="tmdb-thumb">${poster ? `<img src="${escapeAttr(poster)}" alt="">` : `<span>${escapeHtml(initials(result.name))}</span>`}</div>
-        <div class="tmdb-candidate-copy">
-          <strong>${escapeHtml(result.name || "Untitled")}</strong>
-          <span>${escapeHtml(airYear)}</span>
-          <p>${escapeHtml(result.overview || "No TMDB synopsis available.")}</p>
-        </div>
-        <span class="tmdb-select">Use artwork</span>`;
-      candidate.addEventListener("click",()=>{
+      const candidate = window.TV_TRACKER_TMDB_CANDIDATE_VIEW.candidateElement({document,candidate:result,onSelect:()=>{
         pendingTmdbMatch = {
           id: result.id,
           name: result.name || "",
@@ -430,7 +419,7 @@
         refreshPosterPreview();
         els.tmdbStatus.textContent = result.posterPath ? "Selected artwork from TMDB." : "Selected TMDB match; no poster is available.";
         els.tmdbDialog.close();
-      });
+      }});
       els.tmdbResults.appendChild(candidate);
     });
   }
@@ -672,7 +661,16 @@
     if(!inside) els.detailDialog.close();
   });
 
-  try{ load(); }
+  try{
+    load();
+    const artworkDiscovery = window.TV_TRACKER_ARTWORK_ENRICHMENT.createArtworkDiscovery({tmdbSearchService});
+    artworkReview = window.TV_TRACKER_ARTWORK_ENRICHMENT_UI.createArtworkEnrichmentReview({
+      document, discovery:artworkDiscovery, artworkEngine:window.TV_TRACKER_ARTWORK_ENRICHMENT,
+      auth:window.TV_TRACKER_AUTH || null, getShows:()=>deepCopy(shows), getAuthority:()=>authority,
+      candidateView:window.TV_TRACKER_TMDB_CANDIDATE_VIEW
+    });
+    artworkReview.refreshAvailability();
+  }
   catch(err){
     console.error(err);
     els.cardsContainer.innerHTML = `<div class="empty-state"><h2>Unable to load catalogue</h2><p>${escapeHtml(err.message)}</p></div>`;

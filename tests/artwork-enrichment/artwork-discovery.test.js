@@ -159,11 +159,11 @@ test("discovery module has no tracker persistence or mutation path", () => {
   assert.match(source, /tmdbSearchService\.search/);
 });
 
-test("browser loads discovery after TMDB search and before application startup", () => {
+test("browser loads discovery and review dependencies before application startup", () => {
   const html = fs.readFileSync(path.resolve(__dirname, "../../index.html"), "utf8");
   const search = html.indexOf('src="js/tmdb-search-service.js"');
   const discovery = html.indexOf('src="js/artwork-enrichment.js"');
+  const review = html.indexOf('src="js/artwork-enrichment-ui.js"');
   const app = html.indexOf('src="js/app.js"');
-  assert.equal(search >= 0 && discovery > search && app > discovery, true);
-  assert.doesNotMatch(html, /Find missing artwork/);
+  assert.equal(search >= 0 && discovery > search && review > discovery && app > review, true);
 });
