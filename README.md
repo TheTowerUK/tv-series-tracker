@@ -1,37 +1,61 @@
-# TV Series Tracker v1.2 — Artwork & Show Detail
+# TV Series Tracker v2.0
 
-A standalone, static TV-series tracker designed for GitHub Pages. It runs without a backend and stores device-specific edits in LocalStorage while retaining JSON import/export for backups.
+TV Series Tracker is a private, browser-based library for tracking television shows, artwork, and season-by-season viewing progress. It runs as a static GitHub Pages application and can be used either on one device or with an optional private cloud account.
 
-## v1.2 additions
+## Using the tracker
 
-- Dedicated **Show Detail** view with larger artwork, synopsis, platform, air date, overall viewing state and season progress.
-- Optional **poster URL** support with automatic fallback to a title placeholder if artwork is missing or fails to load.
-- Live artwork preview in the Add/Edit dialog.
-- Cards now offer **View details** and **Edit** actions; clicking the poster or show title also opens the detail view.
-- Season-by-season status is presented more clearly in the detail screen.
-- Existing Cards and Compact layouts, filtering, dashboard counts, progressive loading, LocalStorage persistence and JSON backup/import remain intact.
+### Device tracker
 
-## Running locally
+You can use the tracker without signing in. Changes are stored by this browser on this device. The packaged catalogue is used when no device tracker has been saved yet.
 
-Open `index.html` directly in a modern browser. The baseline catalogue is loaded from `data/shows.js`, so no local web server is required for review.
+Use **Download local backup** to save a JSON copy of the device tracker. **Import JSON** restores a compatible device backup and **Reset baseline** replaces device changes with the packaged catalogue.
 
-## GitHub Pages
+### Private cloud tracker
 
-The project remains fully static and can be published directly from a GitHub repository using GitHub Pages.
+Cloud access is currently invite-only. Approved users can sign in with an emailed link or one-time code and use the same private tracker across devices. Public account registration is not available.
 
-## Artwork
+The first signed-in review keeps device data unchanged until the user explicitly chooses to keep the existing cloud tracker, replace it from the device, or review individual changes. After verified cutover, cloud data becomes authoritative; the device tracker remains preserved and returns after sign-out.
 
-Artwork is intentionally optional. Add a direct poster image URL through Edit Show. The tracker never relies on artwork being available and falls back cleanly when an image cannot be loaded.
+Use **Export cloud tracker** to download the signed-in cloud tracker in the canonical v2 format. Initial v2.0 cloud exports are intended for support-assisted restoration; a self-service cloud restore screen is deferred beyond the initial release. For access or recovery support, use the repository's [GitHub issue tracker](https://github.com/TheTowerUK/tv-series-tracker/issues) without posting private tracker data, credentials, or authentication links.
 
-Automatic artwork/metadata lookup is not included in v1.2; that can be added later without changing the core viewing-progress data.
+## Artwork search
 
+Approved signed-in users can search TMDB for television artwork through the authenticated hosted search service. The browser never receives a TMDB credential and does not call TMDB directly. Signed-out users can continue to enter a poster URL manually, and missing or unavailable artwork falls back to a title placeholder.
 
-## v1.3 local TMDB artwork test
+## Privacy and security
 
-The app can optionally search TMDB for TV artwork during local development. Create `config/tmdb.local.js` with:
+- Device tracker data stays in the current browser until the user explicitly migrates it.
+- Cloud tracker rows are private to the authenticated owner under Row Level Security.
+- The browser contains only the public Supabase project URL and publishable key; privileged credentials remain server-side.
+- TMDB searches are sent only when the user requests artwork. The service stores no query history and has analytics disabled.
+- Do not include email links, codes, tokens, credentials, or private tracker contents in public support requests.
 
-```js
-window.TMDB_CONFIG = { token: "YOUR_TMDB_API_READ_ACCESS_TOKEN" };
+## Deployment and development
+
+The application is deployed from `main` through the reviewed GitHub Pages Actions workflow. The workflow runs the Node test suite, builds an allow-listed static artifact, and generates browser-public Supabase configuration inside that artifact only.
+
+For a local checkout:
+
+1. Install Node.js 20 or newer and Docker Desktop when Supabase integration work is required.
+2. Run `npm ci` to install the repository-pinned Supabase CLI.
+3. Serve the repository through a local HTTP server; Auth and Edge Function work should use the documented local Supabase environment.
+4. Keep `config/supabase.local.js` and `supabase/functions/.env.local` local and ignored.
+
+Common checks:
+
+```powershell
+npm test
+npm run test:tmdb
+npx --no-install supabase --version
 ```
 
-That file is intentionally excluded from Git. The public GitHub Pages build remains usable without a token; TMDB search is a local test feature until cloud persistence/server-side proxying is introduced.
+Detailed maintainer documentation:
+
+- [Documentation index](docs/README.md)
+- [Supabase database contract](docs/architecture/SUPABASE_DATABASE_CONTRACT_V2.md)
+- [Environment and configuration contract](docs/development/supabase-environments.md)
+- [TMDB Edge Function contract](docs/development/tmdb-edge-function.md)
+- [v2.0 roadmap](docs/roadmap/v2.0-plan.md)
+- [Phase 2.7 hosted validation](docs/roadmap/v2.0-phase-2.7-validation.md)
+
+TTSPlayer is a separate project and is completely out of scope for this repository.

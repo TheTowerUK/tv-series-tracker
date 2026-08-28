@@ -25,15 +25,16 @@
   if (!els.panel || !bootstrap || !authModule) return;
 
   let service = null;
+  let trackerAuthority = "local";
 
   const messages = Object.freeze({
     invalid_email: "Enter a valid email address.",
     verification_failed: "That verification code could not be confirmed. Check it and try again.",
     expired_verification: "That verification has expired. Send a new code or link.",
     rate_limited: "Too many authentication attempts. Wait a little before trying again.",
-    session_expired: "Your cloud session expired. Sign in again; your local tracker is unchanged.",
+    session_expired: "Your cloud session expired. Sign in again; your device tracker is unchanged.",
     network_unavailable: "Authentication is temporarily unavailable. Check your connection and try again.",
-    configuration_unavailable: "Cloud sign-in is not configured. Your local tracker remains available.",
+    configuration_unavailable: "Cloud sign-in is not configured. Your device tracker remains available.",
     authentication_failed: "Authentication could not be completed. Please try again."
   });
 
@@ -48,6 +49,19 @@
     els.verify.disabled = busy;
     els.resend.disabled = busy;
     els.signOut.disabled = busy;
+  }
+
+  function authenticatedMessage() {
+    return trackerAuthority.startsWith("cloud_")
+      ? "Your private cloud tracker is active. This device tracker is preserved and returns after sign-out."
+      : "Signed in. Your device tracker remains active while your private cloud tracker is checked.";
+  }
+
+  function setTrackerAuthority(authority) {
+    trackerAuthority = typeof authority === "string" ? authority : "local";
+    if (service && service.getState().status === authModule.STATES.AUTHENTICATED) {
+      els.status.textContent = authenticatedMessage();
+    }
   }
 
   function render(state) {
@@ -67,7 +81,7 @@
     if (authenticated) {
       els.email.value = "";
       els.otp.value = "";
-      els.status.textContent = "Signed in. This step continues using the local tracker.";
+      els.status.textContent = authenticatedMessage();
     } else if (state.outcome) {
       els.status.textContent = messages[state.outcome] || messages.authentication_failed;
     } else if (state.status === authModule.STATES.INITIALIZING) {
@@ -77,7 +91,7 @@
     } else if (state.status === authModule.STATES.AWAITING_VERIFICATION) {
       els.status.textContent = "Check your email. Open the sign-in link, or enter the verification code below.";
     } else {
-      els.status.textContent = "Signed out. Your local tracker remains available.";
+      els.status.textContent = "Signed out. Your device tracker remains available.";
     }
 
     els.panel.dataset.authState = state.status;
@@ -104,6 +118,7 @@
     onStateChange: render
   });
   root.TV_TRACKER_AUTH = service;
+  root.TV_TRACKER_AUTH_UI = Object.freeze({ setTrackerAuthority });
 
   els.requestForm.addEventListener("submit", async (event) => {
     event.preventDefault();

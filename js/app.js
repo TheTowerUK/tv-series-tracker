@@ -84,6 +84,7 @@
     if(els.cloudExportBtn) els.cloudExportBtn.disabled=!["cloud_ready","cloud_conflict"].includes(authority);
     document.querySelectorAll(".cloud-season-control").forEach(element=>{ element.disabled=authority!=="cloud_ready"; });
     document.body.dataset.trackerAuthority = authority;
+    window.TV_TRACKER_AUTH_UI?.setTrackerAuthority(authority);
     if(els.localNote) els.localNote.textContent = authority === "local"
       ? "Your tracker stays on this device until you sign in and choose how to migrate it."
       : authority === "cloud_ready" ? "Verified cloud data is active. Changes are confirmed from cloud before display."
@@ -427,7 +428,7 @@
         };
         els.posterInput.value = tmdbImageUrl(result.posterPath, "w500");
         refreshPosterPreview();
-        els.tmdbStatus.textContent = `Selected TMDB #${result.id}${result.posterPath ? " · artwork ready" : " · no poster available"}`;
+        els.tmdbStatus.textContent = result.posterPath ? "Selected artwork from TMDB." : "Selected TMDB match; no poster is available.";
         els.tmdbDialog.close();
       });
       els.tmdbResults.appendChild(candidate);

@@ -18,15 +18,17 @@
       <div class="topbar-tools">
         <div class="top-actions">
           <button class="btn primary" id="addShowBtn">＋ Add Show</button>
-          <button class="btn" id="exportBtn">Download local backup</button>
-          <button class="btn hidden" id="cloudExportBtn">Export cloud tracker</button>
+          <button class="btn" id="exportBtn" aria-describedby="backupHelp">Download local backup</button>
+          <button class="btn hidden" id="cloudExportBtn" aria-describedby="backupHelp">Export cloud tracker</button>
           <label class="btn file-btn">Import JSON<input id="importFile" type="file" accept="application/json,.json"></label>
           <button class="btn danger-ghost" id="resetBtn" title="Restore the baseline catalogue">Reset baseline</button>
         </div>
+        <p class="backup-help" id="backupHelp"><strong>Device backup</strong> saves this browser's tracker. <strong>Cloud export</strong> saves the signed-in cloud tracker for support-assisted restoration.</p>
         <section class="account-panel" id="accountPanel" aria-label="Cloud account" data-auth-state="initializing">
           <div id="authSignedOut">
             <form id="authRequestForm" class="account-form">
               <label for="authEmail">Private cloud sign-in</label>
+              <p class="account-access-note">Cloud access is invite-only. Approved users can sign in; everyone can keep using the device tracker.</p>
               <div class="account-input-row">
                 <input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="Email address" required>
                 <button class="btn" id="authSendBtn" type="submit">Send code/link</button>
@@ -289,7 +291,7 @@
     <article class="dialog-card">
       <header class="dialog-header">
         <div>
-          <p class="eyebrow">TMDB ARTWORK TEST</p>
+          <p class="eyebrow">ARTWORK SEARCH</p>
           <h2>Choose a match</h2>
           <p id="tmdbQuerySummary" class="muted"></p>
         </div>
