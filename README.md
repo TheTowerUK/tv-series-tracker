@@ -16,18 +16,19 @@ Cloud access is currently invite-only. Approved users can sign in with an emaile
 
 The first signed-in review keeps device data unchanged until the user explicitly chooses to keep the existing cloud tracker, replace it from the device, or review individual changes. After verified cutover, cloud data becomes authoritative; the device tracker remains preserved and returns after sign-out.
 
-Use **Export cloud tracker** to download the signed-in cloud tracker in the canonical v2 format. Initial v2.0 cloud exports are intended for support-assisted restoration; a self-service cloud restore screen is deferred beyond the initial release. For access or recovery support, use the repository's [GitHub issue tracker](https://github.com/TheTowerUK/tv-series-tracker/issues) without posting private tracker data, credentials, or authentication links.
+Use **Export cloud tracker** to download the signed-in cloud tracker. Keep exports somewhere safe: initial v2.0 cloud exports are archives intended for support-assisted restoration, and a self-service cloud restore screen is deferred beyond the initial release. For access or recovery support, use the repository's [GitHub issue tracker](https://github.com/TheTowerUK/tv-series-tracker/issues) without posting private tracker data, credentials, or authentication links.
 
 ## Artwork search
 
-Approved signed-in users can search TMDB for television artwork through the authenticated hosted search service. The browser never receives a TMDB credential and does not call TMDB directly. Signed-out users can continue to enter a poster URL manually, and missing or unavailable artwork falls back to a title placeholder.
+Approved signed-in users can search for television artwork through the configured hosted artwork-search service. Use **Find missing artwork** to discover artwork for existing or imported shows, review confident and ambiguous matches, and explicitly apply only the selections you approve. Discovery does not change the tracker, and application never automatically overwrites existing or manually entered artwork.
+
+The ordinary artwork picker remains available when editing one show. Signed-out users can continue to enter a poster URL manually, and missing or unavailable artwork falls back to a title placeholder.
 
 ## Privacy and security
 
-- Device tracker data stays in the current browser until the user explicitly migrates it.
-- Cloud tracker rows are private to the authenticated owner under Row Level Security.
-- The browser contains only the public Supabase project URL and publishable key; privileged credentials remain server-side.
-- TMDB searches are sent only when the user requests artwork. The service stores no query history and has analytics disabled.
+- Device tracker data stays in the current browser until the user explicitly chooses how to move it to an approved private cloud account. The preserved device copy remains available after migration and returns after sign-out.
+- Private cloud tracker data is available only to its approved signed-in account; public self-signup is not offered.
+- Artwork searches are sent only when the user requests them. The service stores no query history or analytics.
 - Do not include email links, codes, tokens, credentials, or private tracker contents in public support requests.
 
 ## Deployment and development
@@ -52,6 +53,7 @@ npx --no-install supabase --version
 Detailed maintainer documentation:
 
 - [Documentation index](docs/README.md)
+- [v2.0 release notes](CHANGELOG.md)
 - [Supabase database contract](docs/architecture/SUPABASE_DATABASE_CONTRACT_V2.md)
 - [Environment and configuration contract](docs/development/supabase-environments.md)
 - [TMDB Edge Function contract](docs/development/tmdb-edge-function.md)

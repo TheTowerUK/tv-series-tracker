@@ -1,5 +1,7 @@
 # TV Series Tracker v2.0 — Supabase Environment and Configuration Contract
 
+> **Status notice (2026-08-28):** This document preserves the Phase 2.2 environment contract and historical closure evidence. The hosted development deployment is now complete; see the [Phase 2.7 hosted validation](../roadmap/v2.0-phase-2.7-validation.md) for current disposition. Its local workflow and secret-handling rules remain authoritative.
+
 **Status:** Accepted for the Phase 2.2 baseline
 
 **Date:** 2026-08-18

@@ -42,6 +42,7 @@ Version-controlled database migrations will implement the contract after approva
 
 ## Roadmap and validation
 
+- [v2.0 user-facing release notes](../CHANGELOG.md)
 - [v2.0 roadmap](roadmap/v2.0-plan.md)
 - [Phase 2.1 validation checklist](roadmap/v2.0-phase-2.1-validation.md)
 - [Phase 2.2 validation and closure checklist](roadmap/v2.0-phase-2.2-validation.md)

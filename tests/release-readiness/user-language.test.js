@@ -42,3 +42,24 @@ test("artwork selection hides numeric TMDB IDs while retaining internal metadata
   assert.match(app, /Selected artwork from TMDB\./);
   assert.match(app, /id: result\.id/);
 });
+
+test("release guidance covers reviewed artwork and support-assisted cloud recovery", () => {
+  const readme = read("README.md");
+  const changelog = read("CHANGELOG.md");
+  assert.match(readme, /Find missing artwork/);
+  assert.match(readme, /never automatically overwrites existing or manually entered artwork/);
+  assert.match(readme, /Keep exports somewhere safe/);
+  assert.match(readme, /support-assisted restoration/);
+  assert.match(changelog, /release candidate in preparation/);
+  assert.doesNotMatch(changelog, /^## v2\.0 — released$/m);
+});
+
+test("interactive release surfaces expose focus, dialog and progress semantics", () => {
+  const html = read("index.html");
+  const styles = read("css/styles.css");
+  assert.match(styles, /:focus-visible/);
+  assert.match(styles, /tmdb-candidate\.selected \.tmdb-select::before\{content:"✓ /);
+  assert.match(html, /id="artworkEnrichmentDialog"[^>]*aria-labelledby="artworkEnrichmentTitle"/);
+  assert.match(html, /id="artworkDiscoveryProgressBar"[^>]*aria-label="Artwork discovery progress"/);
+  assert.match(html, /id="artworkSelectedSummary"[^>]*role="status"[^>]*aria-live="polite"/);
+});

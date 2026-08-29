@@ -143,7 +143,7 @@
 
       <div class="results-meta">
         <span id="resultCount"></span>
-        <span class="local-note">Changes on this device are stored locally until cloud sync is added.</span>
+        <span class="local-note" role="status" aria-live="polite">Your tracker stays on this device until you sign in and choose how to migrate it.</span>
       </div>
 
       <section id="cardsContainer" class="cards-grid" aria-live="polite"></section>
@@ -166,7 +166,7 @@
     </main>
   </div>
 
-  <dialog id="detailDialog" class="detail-dialog">
+  <dialog id="detailDialog" class="detail-dialog" aria-labelledby="detailTitle">
     <article class="detail-card">
       <button class="icon-btn detail-close" id="closeDetailBtn" type="button" aria-label="Close show details">×</button>
       <div class="detail-hero">
@@ -204,7 +204,7 @@
     </article>
   </dialog>
 
-  <dialog id="showDialog">
+  <dialog id="showDialog" aria-labelledby="dialogTitle">
     <form method="dialog" id="showForm" class="dialog-card">
       <header class="dialog-header">
         <div>
@@ -259,10 +259,10 @@
     </form>
   </dialog>
 
-  <dialog id="showConflictDialog" class="conflict-dialog">
+  <dialog id="showConflictDialog" class="conflict-dialog" aria-labelledby="showConflictTitle">
     <article class="dialog-card">
       <header class="dialog-header">
-        <div><p class="eyebrow">CLOUD CONFLICT</p><h2>Review this change</h2></div>
+        <div><p class="eyebrow">CLOUD CONFLICT</p><h2 id="showConflictTitle">Review this change</h2></div>
       </header>
       <p class="muted" id="showConflictMessage"></p>
       <div class="conflict-comparison" id="showConflictComparison"></div>
@@ -274,9 +274,9 @@
     </article>
   </dialog>
 
-  <dialog id="seasonConflictDialog" class="conflict-dialog">
+  <dialog id="seasonConflictDialog" class="conflict-dialog" aria-labelledby="seasonConflictTitle">
     <article class="dialog-card">
-      <header class="dialog-header"><div><p class="eyebrow">SEASON CONFLICT</p><h2>Review season change</h2></div></header>
+      <header class="dialog-header"><div><p class="eyebrow">SEASON CONFLICT</p><h2 id="seasonConflictTitle">Review season change</h2></div></header>
       <p class="muted" id="seasonConflictMessage"></p>
       <div class="season-conflict-values" id="seasonConflictValues"></div>
       <footer class="dialog-actions">
@@ -288,12 +288,12 @@
     </article>
   </dialog>
 
-  <dialog id="tmdbDialog" class="tmdb-dialog">
+  <dialog id="tmdbDialog" class="tmdb-dialog" aria-labelledby="tmdbDialogTitle">
     <article class="dialog-card">
       <header class="dialog-header">
         <div>
           <p class="eyebrow">ARTWORK SEARCH</p>
-          <h2>Choose a match</h2>
+          <h2 id="tmdbDialogTitle">Choose artwork</h2>
           <p id="tmdbQuerySummary" class="muted"></p>
         </div>
         <button class="icon-btn" id="closeTmdbBtn" type="button" aria-label="Close">×</button>
@@ -302,21 +302,21 @@
     </article>
   </dialog>
 
-  <dialog id="artworkEnrichmentDialog" class="artwork-enrichment-dialog">
+  <dialog id="artworkEnrichmentDialog" class="artwork-enrichment-dialog" aria-labelledby="artworkEnrichmentTitle">
     <article class="dialog-card">
       <header class="dialog-header">
-        <div><p class="eyebrow">ARTWORK DISCOVERY</p><h2>Find missing artwork</h2><p id="artworkAuthorityLabel" class="muted"></p></div>
+        <div><p class="eyebrow">ARTWORK DISCOVERY</p><h2 id="artworkEnrichmentTitle">Find missing artwork</h2><p id="artworkAuthorityLabel" class="muted"></p></div>
         <button class="icon-btn" id="closeArtworkEnrichmentBtn" type="button" aria-label="Close">×</button>
       </header>
       <p id="artworkDiscoveryStatus" aria-live="polite">Review missing artwork without changing your tracker.</p>
-      <progress id="artworkDiscoveryProgressBar" class="artwork-discovery-progress" max="1" value="0"></progress>
+      <progress id="artworkDiscoveryProgressBar" class="artwork-discovery-progress" max="1" value="0" aria-label="Artwork discovery progress"></progress>
       <div class="artwork-progress-copy"><strong id="artworkDiscoveryProgress">Processed 0 of 0</strong><span id="artworkDiscoveryCounts" class="muted"></span></div>
       <div class="artwork-discovery-actions">
         <button class="btn" id="cancelArtworkDiscoveryBtn" type="button">Cancel discovery</button>
         <button class="btn hidden" id="resumeArtworkDiscoveryBtn" type="button">Resume remaining shows</button>
       </div>
       <div id="artworkDiscoveryResults" class="artwork-discovery-results"></div>
-      <p id="artworkSelectedSummary" class="artwork-selection-summary">No tracker data has changed.</p>
+      <p id="artworkSelectedSummary" class="artwork-selection-summary" role="status" aria-live="polite">No tracker data has changed.</p>
       <footer class="dialog-actions">
         <button class="btn hidden" id="cancelArtworkApplicationBtn" type="button">Stop after current update</button>
         <button class="btn hidden" id="resumeArtworkApplicationBtn" type="button">Resume remaining</button>
