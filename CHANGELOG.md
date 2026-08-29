@@ -1,6 +1,6 @@
 # TV Series Tracker release notes
 
-## v2.0 — release candidate in preparation
+## 2.0.0-rc.1 — 2026-08-29 prerelease
 
 TV Series Tracker v2.0 is not yet declared finally released. The current release-readiness work introduces:
 
