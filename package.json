@@ -1,6 +1,6 @@
 {
   "name": "tv-series-tracker-development",
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0",
   "private": true,
   "description": "Repository-local development tooling for TVSeriesTracker.",
   "scripts": {

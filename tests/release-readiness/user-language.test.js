@@ -50,8 +50,8 @@ test("release guidance covers reviewed artwork and support-assisted cloud recove
   assert.match(readme, /never automatically overwrites existing or manually entered artwork/);
   assert.match(readme, /Keep exports somewhere safe/);
   assert.match(readme, /support-assisted restoration/);
-  assert.match(changelog, /## 2\.0\.0-rc\.1 — 2026-08-29 prerelease/);
-  assert.doesNotMatch(changelog, /^## v2\.0 — released$/m);
+  assert.match(changelog, /## 2\.0\.0 — 2026-08-30/);
+  assert.doesNotMatch(changelog, /prerelease|release candidate in preparation/);
 });
 
 test("interactive release surfaces expose focus, dialog and progress semantics", () => {
