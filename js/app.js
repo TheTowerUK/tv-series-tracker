@@ -2,13 +2,14 @@
   "use strict";
 
   const VIEW_KEY = "tvSeriesTrackerView.v1";
-  const PAGE_SIZE = 60;
+  const pagination = window.TV_TRACKER_CATALOGUE_PAGINATION;
+  const PAGE_SIZE = pagination.PAGE_SIZE;
   const SEASON_STATUSES = ["Not Started","Watching","Completed","Purchase Only","Region Blocked"];
   const CANONICAL_PLATFORMS = ["Netflix","Prime Video","BBC iPlayer","Disney+","NOW","TV"];
 
   let baselineShows = [];
   let shows = [];
-  let visibleLimit = PAGE_SIZE;
+  let currentPage = 1;
   let pendingTmdbMatch = null;
   let authority = "local";
   const localRepository = window.TV_TRACKER_REPOSITORIES.createLocalTrackerRepository({storage:localStorage});
@@ -21,7 +22,7 @@
     searchInput: $("searchInput"), platformFilter: $("platformFilter"), statusFilter: $("statusFilter"), sortSelect: $("sortSelect"),
     cardsViewBtn: $("cardsViewBtn"), compactViewBtn: $("compactViewBtn"), clearFiltersBtn: $("clearFiltersBtn"),
     cardsContainer: $("cardsContainer"), emptyState: $("emptyState"), resultCount: $("resultCount"),
-    loadMoreWrap: $("loadMoreWrap"), loadMoreBtn: $("loadMoreBtn"),
+    cataloguePagination: $("cataloguePagination"), previousPageBtn: $("previousPageBtn"), nextPageBtn: $("nextPageBtn"), pageIndicator: $("pageIndicator"),
     statTotal: $("statTotal"), statWatching: $("statWatching"), statCompleted: $("statCompleted"),
     statNotStarted: $("statNotStarted"), statPartial: $("statPartial"), statUnavailable: $("statUnavailable"),
     showDialog: $("showDialog"), showForm: $("showForm"), dialogTitle: $("dialogTitle"), showId: $("showId"),
@@ -97,7 +98,15 @@
   function applyCloudSyncState(state){
     if(!state || !state.status || authority === "local") return;
     authority = state.status;
-    if(state.snapshot && ["cloud_ready","cloud_conflict"].includes(state.status)) shows = deepCopy(state.snapshot.shows);
+    let activeEditorRemoved = false;
+    if(state.snapshot && ["cloud_ready","cloud_conflict"].includes(state.status)) {
+      shows = deepCopy(state.snapshot.shows);
+      const editedId = els.showDialog.open ? els.showId.value : "";
+      if(editedId && !shows.some(show=>show.id===editedId)){
+        els.showDialog.close();
+        activeEditorRemoved = true;
+      }
+    }
     const stale = state.status === "cloud_stale_readonly", conflict = state.status === "cloud_conflict";
     els.cloudSyncStatus?.classList.toggle("hidden", !stale && !conflict && !["cloud_mutating","cloud_refreshing"].includes(state.status));
     els.cloudSyncRetryBtn?.classList.toggle("hidden", !stale);
@@ -107,8 +116,12 @@
       : conflict ? "This show changed on another device. Review the current cloud version before retrying."
       : state.status === "cloud_mutating" ? "Saving your cloud change…"
       : state.status === "cloud_refreshing" ? "Confirming the latest cloud tracker…" : "";
+    if(activeEditorRemoved){
+      els.cloudSyncStatus?.classList.remove("hidden");
+      if(els.cloudSyncMessage) els.cloudSyncMessage.textContent="The show being edited no longer exists in the latest cloud tracker. Your unsaved changes were not applied.";
+    }
     setMutationControlsDisabled(state.status !== "cloud_ready");
-    if(["cloud_ready","cloud_conflict"].includes(state.status)){ refreshPlatformOptions(); visibleLimit=PAGE_SIZE; render(); }
+    if(["cloud_ready","cloud_conflict"].includes(state.status)){ refreshPlatformOptions(); render(); }
     if(conflict && state.conflict) {
       conflictReview?.show(state.conflict);
       seasonConflictReview?.show(state.conflict);
@@ -127,20 +140,23 @@
 
   function setCloudWritable({controller,accountId,generation,cloudShows}){
     if(!controller || !accountId || generation == null || !Array.isArray(cloudShows)) throw new TypeError("Verified writable cloud context is required.");
-    [els.showDialog,els.detailDialog,els.tmdbDialog].forEach(dialog=>{ if(dialog?.open) dialog.close(); });
+    const sameCloudAccount = cloudContext && cloudContext.accountId === accountId && cloudAuthority();
+    if(!sameCloudAccount) [els.showDialog,els.detailDialog,els.tmdbDialog].forEach(dialog=>{ if(dialog?.open) dialog.close(); });
     cloudController=controller; cloudContext={accountId,generation}; authority="cloud_ready";
     const snapshot={shows:deepCopy(cloudShows),totals:{shows:cloudShows.length,seasons:cloudShows.reduce((sum,show)=>sum+(show.seasons||[]).length,0)}};
     cloudController.activate({...cloudContext,snapshot});
   }
 
   function returnToLocal(){
+    const leavingCloud = cloudAuthority();
+    if(leavingCloud) [els.showDialog,els.detailDialog,els.tmdbDialog].forEach(dialog=>{ if(dialog?.open) dialog.close(); });
     conflictReview?.close();
     seasonConflictReview?.close();
     cloudController?.invalidate(); cloudController=null; cloudContext=null;
     authority = "local";
     const result = localRepository.readTracker({baseline:baselineShows});
     shows = deepCopy(result.data.shows);
-    visibleLimit = PAGE_SIZE;
+    currentPage = 1;
     refreshPlatformOptions(); clearFilters(); setMutationControlsDisabled(false); render();
     els.cloudSyncStatus?.classList.add("hidden");
   }
@@ -241,17 +257,18 @@
   function render(){
     renderStats();
     const list = getFiltered();
-    const visible = list.slice(0, visibleLimit);
+    const page = pagination.paginate(list,currentPage,PAGE_SIZE);
+    currentPage = page.currentPage;
+    const visible = page.items;
     const hasFilters = Boolean(els.searchInput.value.trim() || els.platformFilter.value || els.statusFilter.value);
     els.clearFiltersBtn.classList.toggle("hidden", !hasFilters);
-    els.resultCount.textContent = list.length > visible.length
-      ? `Showing ${visible.length} of ${list.length} matching shows · ${shows.length} total`
-      : `${list.length} matching show${list.length===1?"":"s"} · ${shows.length} total`;
+    els.resultCount.textContent = `${list.length} matching show${list.length===1?"":"s"} · ${shows.length} total`;
     els.cardsContainer.innerHTML = "";
     els.emptyState.classList.toggle("hidden", list.length !== 0);
     visible.forEach(show => els.cardsContainer.appendChild(createCard(show)));
-    els.loadMoreWrap.classList.toggle("hidden", visible.length >= list.length);
-    if(visible.length < list.length) els.loadMoreBtn.textContent = `Load more (${list.length - visible.length} remaining)`;
+    els.pageIndicator.textContent = `Page ${page.currentPage} of ${page.totalPages}`;
+    els.previousPageBtn.disabled = !page.hasPrevious;
+    els.nextPageBtn.disabled = !page.hasNext;
     artworkReview?.refreshAvailability();
   }
 
@@ -511,7 +528,7 @@
     const index = shows.findIndex(s=>s.id===id);
     if(index>=0){ record.createdAt = shows[index].createdAt || record.createdAt; shows[index]=record; }
     else shows.push(record);
-    save(); refreshPlatformOptions(); visibleLimit = PAGE_SIZE; render(); els.showDialog.close();
+    save(); refreshPlatformOptions(); render(); els.showDialog.close();
   }
 
   async function deleteCurrent(){
@@ -526,7 +543,7 @@
       else if(authority === "cloud_ready") showCloudFailure();
     }else if(confirm(`Delete "${show.title}" from this device?`)){
       shows = shows.filter(s=>s.id!==id);
-      save(); refreshPlatformOptions(); visibleLimit = PAGE_SIZE; render(); els.showDialog.close();
+      save(); refreshPlatformOptions(); render(); els.showDialog.close();
     }
   }
 
@@ -562,7 +579,7 @@
       if(!Array.isArray(imported)) throw new Error("JSON does not contain a shows array.");
       if(authority !== "local" || !confirm(`Replace this device's current ${shows.length} shows with ${imported.length} imported shows?`)) return;
       shows = deepCopy(imported);
-      save(); refreshPlatformOptions(); visibleLimit = PAGE_SIZE; render();
+      save(); refreshPlatformOptions(); currentPage = 1; render();
     }catch(err){ alert(`Import failed: ${err.message}`); }
     finally{ els.importFile.value=""; }
   }
@@ -576,7 +593,7 @@
 
   function setStatusFilter(status){
     els.statusFilter.value = status;
-    visibleLimit = PAGE_SIZE;
+    currentPage = 1;
     render();
   }
 
@@ -584,7 +601,7 @@
     els.searchInput.value = "";
     els.platformFilter.value = "";
     els.statusFilter.value = "";
-    visibleLimit = PAGE_SIZE;
+    currentPage = 1;
     render();
   }
 
@@ -616,11 +633,12 @@
   els.clearFiltersBtn.addEventListener("click",clearFilters);
   els.cardsViewBtn.addEventListener("click",()=>setView("cards"));
   els.compactViewBtn.addEventListener("click",()=>setView("compact"));
-  els.loadMoreBtn.addEventListener("click",()=>{visibleLimit += PAGE_SIZE; render();});
+  els.previousPageBtn.addEventListener("click",()=>{currentPage=Math.max(1,currentPage-1);render();});
+  els.nextPageBtn.addEventListener("click",()=>{currentPage+=1;render();});
   statButtons.forEach(btn=>btn.addEventListener("click",()=>setStatusFilter(btn.dataset.statStatus)));
   statusChips.forEach(btn=>btn.addEventListener("click",()=>setStatusFilter(btn.dataset.statusChip)));
-  els.searchInput.addEventListener("input",()=>{visibleLimit=PAGE_SIZE;render();});
-  [els.platformFilter,els.statusFilter,els.sortSelect].forEach(el=>el.addEventListener("change",()=>{visibleLimit=PAGE_SIZE;render();}));
+  els.searchInput.addEventListener("input",()=>{currentPage=1;render();});
+  [els.platformFilter,els.statusFilter,els.sortSelect].forEach(el=>el.addEventListener("change",()=>{currentPage=1;render();}));
   els.posterInput.addEventListener("input",refreshPosterPreview);
   els.titleInput.addEventListener("input",refreshPosterPreview);
   els.closeDetailBtn.addEventListener("click",()=>els.detailDialog.close());

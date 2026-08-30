@@ -87,7 +87,7 @@ test("matching keep-cloud marker suppresses repeat review and source change inva
   assert.equal((await instance.inspect("owner")).status, STATES.REVIEW_REQUIRED);
 });
 
-test("receipt takes precedence over a marker and completion always uses a fresh cloud read", async () => {
+test("receipt completion ignores repeated same-account Auth events but explicit inspection refreshes cloud", async () => {
   let markerReads = 0, trackerReads = 0;
   const receipt = { migrationKey: "localstorage-tvSeriesTrackerData.v1", resultChecksum: "historic" };
   const cloudRepository = { async readMigrationReceipt() { return { ok: true, data: { receipt } }; },
@@ -97,9 +97,29 @@ test("receipt takes precedence over a marker and completion always uses a fresh 
     markerStore: { async read() { markerReads += 1; return true; } }, storage: {}, baseline: [] });
   const first = await instance.applyAuthState({ status: "authenticated", accountId: "owner" });
   const second = await instance.applyAuthState({ status: "authenticated", accountId: "owner" });
-  assert.equal(first.status, STATES.COMPLETED); assert.equal(second.status, STATES.COMPLETED);
-  assert.equal(first.cloudShows[0].id, "fresh-1"); assert.equal(second.cloudShows[0].id, "fresh-2");
+  assert.equal(first.status, STATES.COMPLETED); assert.equal(second, first);
+  assert.equal(second.cloudShows[0].id, "fresh-1");
+  const refreshed = await instance.inspect("owner");
+  assert.equal(refreshed.cloudShows[0].id, "fresh-2");
   assert.equal(markerReads, 0); assert.equal(trackerReads, 2);
+});
+
+test("same-account token refresh and repeated sign-in publish no authority teardown", async () => {
+  let reads = 0;
+  const events = [];
+  const instance = createMigrationStateService({ sourceInspector: () => source, checksum: async () => "hash",
+    cloudRepository: { async readMigrationReceipt() { reads += 1; return { ok: true, data: { receipt: { migrationKey: "key" } } }; },
+      async readTracker() { return { ok: true, data: { shows: [], totals: { shows: 0, seasons: 0 } } }; } },
+    cloudPayload: shows => ({ schemaVersion: 2, shows }), diffBuilder: () => [], storage: {}, baseline: [],
+    onStateChange: next => events.push(next.status) });
+  await instance.applyAuthState({ status: "authenticated", accountId: "owner", reason: "initial_session" });
+  const published = events.length;
+  await instance.applyAuthState({ status: "authenticated", accountId: "owner", reason: "token_refreshed" });
+  await instance.applyAuthState({ status: "authenticated", accountId: "owner", reason: "signed_in" });
+  await instance.applyAuthState({ status: "authenticated", accountId: "owner", reason: "user_updated" });
+  assert.equal(reads, 1);
+  assert.equal(events.length, published);
+  assert.equal(instance.getState().status, STATES.COMPLETED);
 });
 
 test("account switch invalidates a slower prior inspection", async () => {

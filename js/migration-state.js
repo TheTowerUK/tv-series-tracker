@@ -85,6 +85,7 @@
     async function applyAuthState(authState) {
       const nextId = authState && authState.status === "authenticated" ? authState.accountId : null;
       if (!nextId) return invalidate(authState && authState.status || "signed_out");
+      if (nextId === accountId) return current;
       if (nextId !== accountId) { generation += 1; accountId = null; }
       return inspect(nextId);
     }

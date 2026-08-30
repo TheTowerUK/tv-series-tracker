@@ -147,9 +147,11 @@
       </div>
 
       <section id="cardsContainer" class="cards-grid" aria-live="polite"></section>
-      <div class="load-more-wrap hidden" id="loadMoreWrap">
-        <button class="btn" id="loadMoreBtn" type="button">Load more</button>
-      </div>
+      <nav class="catalogue-pagination" id="cataloguePagination" aria-label="Catalogue pages">
+        <button class="btn" id="previousPageBtn" type="button" aria-label="Previous catalogue page">Previous</button>
+        <span id="pageIndicator" role="status" aria-live="polite">Page 1 of 1</span>
+        <button class="btn" id="nextPageBtn" type="button" aria-label="Next catalogue page">Next</button>
+      </nav>
       <section id="emptyState" class="empty-state hidden">
         <h2>No matching shows</h2>
         <p>Adjust the search or filters, or add a new show.</p>
@@ -365,6 +367,7 @@
   <script src="js/migration-state.js"></script>
   <script src="js/migration-execution.js"></script>
   <script src="js/auth-ui.js"></script>
+  <script src="js/catalogue-pagination.js"></script>
   <script src="js/app.js"></script>
   <script src="js/migration-review-ui.js"></script>
 </body>
