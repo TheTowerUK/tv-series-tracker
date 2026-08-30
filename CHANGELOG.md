@@ -1,5 +1,10 @@
 # TV Series Tracker release notes
 
+## 2.0.1 — 2026-08-30
+
+- Same-account Auth/session refreshes no longer close an in-progress cloud editor, preserving unsaved editing context.
+- The catalogue now uses explicit 60-show pagination instead of cumulative **Load more** rendering.
+
 ## 2.0.0 — 2026-08-30
 
 TV Series Tracker v2.0 introduces:
